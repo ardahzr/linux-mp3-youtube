@@ -11,32 +11,34 @@ A Spotify-inspired dark-theme music player for Linux, built with .NET + GTK3.
 
 ## Requirements
 - Arch Linux (or Arch-based: EndeavourOS, Manjaro …)
-- .NET SDK 9+
 - `mpg123`, `libpulse`, `gtk3`, `yt-dlp`, `ffmpeg`
+- **.NET SDK is NOT required** — pre-built binary is included
 
-## Install (one command)
+## Install (3 commands, no dotnet needed)
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/lmp.git
-cd lmp
-chmod +x install.sh
-./install.sh
+git clone https://github.com/ardahzr/linux-mp3-youtube.git
+cd linux-mp3-youtube
+chmod +x install.sh && ./install.sh
 ```
 
-After install, search **"LMP"** in your application menu.
+The script will:
+1. Install missing system packages via `pacman` (needs `sudo`)
+2. Copy the pre-built binary to `~/.local/share/LMP/`
+3. Add **LMP** to your application menu
 
 ## Update
 
 ```bash
-cd lmp
+cd linux-mp3-youtube
 git pull
-./install.sh
+chmod +x install.sh && ./install.sh
 ```
 
 ## Manual run (without installing)
 
 ```bash
-dotnet run --project MP3Player.csproj
+./MP3Player-linux-x64
 ```
 
 ## Uninstall

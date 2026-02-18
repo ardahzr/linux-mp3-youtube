@@ -2,6 +2,7 @@
 # ─────────────────────────────────────────────────────────────
 #  LMP – Libuntu Music Player  |  install.sh
 #  Supports: Arch Linux / Arch-based (EndeavourOS, Manjaro …)
+#  Does NOT require .NET SDK — uses pre-built binary.
 #  Run:  chmod +x install.sh && ./install.sh
 # ─────────────────────────────────────────────────────────────
 set -e
@@ -10,41 +11,54 @@ INSTALL_DIR="$HOME/.local/share/LMP"
 DESKTOP_DIR="$HOME/.local/share/applications"
 BINARY="$INSTALL_DIR/MP3Player"
 
+# GitHub Releases URL – update this after uploading a new release
+RELEASE_URL="https://github.com/ardahzr/linux-mp3-youtube/releases/latest/download/MP3Player-linux-x64"
+
 echo "════════════════════════════════════════"
 echo "  LMP – Libuntu Music Player  Installer"
 echo "════════════════════════════════════════"
 
-# ── 1. Check / install system dependencies ───────────────────
+# ── 1. Check / install system dependencies (no dotnet needed) ─
 echo ""
 echo "▶ Checking system dependencies…"
 
 MISSING_PKGS=()
-
-command -v dotnet &>/dev/null || MISSING_PKGS+=(dotnet-sdk)
-pacman -Q mpg123     &>/dev/null || MISSING_PKGS+=(mpg123)
-pacman -Q libpulse   &>/dev/null || MISSING_PKGS+=(libpulse)
-pacman -Q gtk3       &>/dev/null || MISSING_PKGS+=(gtk3)
-pacman -Q yt-dlp     &>/dev/null || MISSING_PKGS+=(yt-dlp)
-pacman -Q ffmpeg     &>/dev/null || MISSING_PKGS+=(ffmpeg)
+pacman -Q mpg123   &>/dev/null || MISSING_PKGS+=(mpg123)
+pacman -Q libpulse &>/dev/null || MISSING_PKGS+=(libpulse)
+pacman -Q gtk3     &>/dev/null || MISSING_PKGS+=(gtk3)
+pacman -Q yt-dlp   &>/dev/null || MISSING_PKGS+=(yt-dlp)
+pacman -Q ffmpeg   &>/dev/null || MISSING_PKGS+=(ffmpeg)
 
 if [ ${#MISSING_PKGS[@]} -gt 0 ]; then
-    echo "  Installing missing packages: ${MISSING_PKGS[*]}"
+    echo "  Installing: ${MISSING_PKGS[*]}"
     sudo pacman -S --needed --noconfirm "${MISSING_PKGS[@]}"
 else
     echo "  All dependencies already installed ✓"
 fi
 
-# ── 2. Build & publish ────────────────────────────────────────
+# ── 2. Download or copy binary ────────────────────────────────
 echo ""
-echo "▶ Building LMP…"
-dotnet publish MP3Player.csproj \
-    -c Release \
-    -r linux-x64 \
-    --self-contained true \
-    -o "$INSTALL_DIR"
+mkdir -p "$INSTALL_DIR"
+
+# If running from a cloned repo that already has the binary, just copy it.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -f "$SCRIPT_DIR/MP3Player-linux-x64" ]; then
+    echo "▶ Copying pre-built binary from repo…"
+    cp "$SCRIPT_DIR/MP3Player-linux-x64" "$BINARY"
+else
+    echo "▶ Downloading pre-built binary from GitHub Releases…"
+    if command -v curl &>/dev/null; then
+        curl -L "$RELEASE_URL" -o "$BINARY"
+    elif command -v wget &>/dev/null; then
+        wget -q --show-progress "$RELEASE_URL" -O "$BINARY"
+    else
+        echo "❌ curl or wget not found. Install one: sudo pacman -S curl"
+        exit 1
+    fi
+fi
 
 chmod +x "$BINARY"
-echo "  Published to $INSTALL_DIR ✓"
+echo "  Binary ready at $BINARY ✓"
 
 # ── 3. Desktop entry ──────────────────────────────────────────
 echo ""
