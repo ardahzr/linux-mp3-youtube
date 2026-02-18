@@ -1,0 +1,299 @@
+/* ═══════════════════════════════════════════════════════
+   LMP – Libuntu Music Player — Spotify-style Dark Theme
+   GTK 3.24 compatible CSS
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Genel arka plan ──────────────────────────────────── */
+window {
+    background-color: #121212;
+    color: #FFFFFF;
+}
+
+* {
+    color: #FFFFFF;
+    font-family: "Ubuntu", "Cantarell", sans-serif;
+}
+
+/* ── Sol Sidebar ──────────────────────────────────────── */
+#sidebar {
+    background-color: #000000;
+    border-right: 1px solid #282828;
+    min-width: 220px;
+}
+
+#sidebar-header {
+    background-color: #000000;
+    padding: 16px 12px 8px 12px;
+}
+
+#sidebar-header label {
+    font-size: 13px;
+    font-weight: bold;
+    color: #FFFFFF;
+}
+
+/* Sidebar playlist listesi */
+#playlist-list {
+    background-color: #000000;
+}
+
+#playlist-list row {
+    padding: 6px 16px;
+    border-radius: 4px;
+    margin: 1px 6px;
+}
+
+#playlist-list row:hover {
+    background-color: #1a1a1a;
+}
+
+#playlist-list row:selected {
+    background-color: #282828;
+}
+
+#playlist-list row:selected label {
+    color: #FFFFFF;
+    font-weight: bold;
+}
+
+#playlist-list label {
+    color: #B3B3B3;
+    font-size: 14px;
+}
+
+/* Sidebar yeni playlist butonu */
+#btn-new-playlist {
+    background: transparent;
+    border: none;
+    color: #B3B3B3;
+    padding: 8px 16px;
+    font-size: 13px;
+}
+
+#btn-new-playlist:hover {
+    color: #FFFFFF;
+    background-color: #1a1a1a;
+}
+
+/* ── Ana İçerik Alanı ─────────────────────────────────── */
+#content-area {
+    background-color: #121212;
+}
+
+/* İçerik header */
+#content-header {
+    background-color: #1a3320;
+    padding: 24px 24px 16px 24px;
+}
+
+#now-playing-title {
+    font-size: 24px;
+    font-weight: bold;
+    color: #FFFFFF;
+}
+
+#now-playing-subtitle {
+    font-size: 13px;
+    color: #B3B3B3;
+    margin-top: 4px;
+}
+
+/* ── Şarkı Listesi ────────────────────────────────────── */
+#track-list {
+    background-color: #121212;
+    color: #FFFFFF;
+}
+
+#track-list-scroll {
+    background-color: #121212;
+}
+
+#track-list row {
+    padding: 4px 24px;
+    border-radius: 4px;
+    margin: 0px 8px;
+    background-color: #121212;
+}
+
+#track-list row:hover {
+    background-color: #282828;
+}
+
+#track-list row:selected {
+    background-color: #333333;
+}
+
+/* ── Alt Player Bar ───────────────────────────────────── */
+#player-bar {
+    background-color: #181818;
+    border-top: 1px solid #282828;
+    padding: 12px 16px;
+    min-height: 90px;
+}
+
+/* Album art thumbnail */
+#player-album-art {
+    border-radius: 4px;
+    margin-right: 8px;
+}
+
+#player-track-info label {
+    color: #FFFFFF;
+}
+
+#player-track-name {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+#player-track-artist {
+    font-size: 12px;
+    color: #B3B3B3;
+}
+
+/* Play / pause main button */
+#control-btn {
+    background: transparent;
+    border: none;
+    border-radius: 20px;
+    padding: 4px 8px;
+    color: #B3B3B3;
+    font-size: 16px;
+    min-width: 32px;
+    min-height: 32px;
+}
+
+#control-btn:hover {
+    color: #FFFFFF;
+    background-color: #282828;
+}
+
+#control-btn-play {
+    background-color: #1DB954;
+    border: none;
+    border-radius: 50%;
+    padding: 0px;
+    color: #000000;
+    font-size: 16px;
+    font-weight: bold;
+    min-width: 38px;
+    min-height: 38px;
+}
+
+#control-btn-play:hover {
+    background-color: #1ed760;
+}
+
+/* İlerleme çubuğu */
+#progress-scale trough {
+    background-color: #535353;
+    border-radius: 2px;
+    min-height: 4px;
+}
+
+#progress-scale highlight {
+    background-color: #1DB954;
+    border-radius: 2px;
+}
+
+#progress-scale slider {
+    background-color: #FFFFFF;
+    border-radius: 50%;
+    min-width: 12px;
+    min-height: 12px;
+    margin: -4px 0;
+    border: none;
+}
+
+/* Ses slider */
+#volume-scale trough {
+    background-color: #535353;
+    border-radius: 2px;
+    min-height: 4px;
+}
+
+#volume-scale highlight {
+    background-color: #1DB954;
+    border-radius: 2px;
+}
+
+#volume-scale slider {
+    background-color: #FFFFFF;
+    border-radius: 50%;
+    min-width: 10px;
+    min-height: 10px;
+    margin: -3px 0;
+    border: none;
+}
+
+/* Zaman etiketi */
+#time-label {
+    font-size: 11px;
+    color: #B3B3B3;
+    font-family: monospace;
+}
+
+/* ── Araç çubuğu ──────────────────────────────────────── */
+#toolbar {
+    background-color: #121212;
+    border-bottom: 1px solid #282828;
+    padding: 6px 12px;
+}
+
+#toolbar-btn {
+    background-color: transparent;
+    border: 1px solid #535353;
+    border-radius: 16px;
+    color: #FFFFFF;
+    font-size: 12px;
+    padding: 5px 12px;
+    margin: 0 2px;
+}
+
+#toolbar-btn:hover {
+    border-color: #FFFFFF;
+    background-color: #282828;
+}
+
+#toolbar-btn-youtube {
+    background-color: #CC0000;
+    border: none;
+    border-radius: 16px;
+    color: #FFFFFF;
+    font-size: 12px;
+    padding: 5px 12px;
+    font-weight: bold;
+}
+
+#toolbar-btn-youtube:hover {
+    background-color: #FF0000;
+}
+
+/* ── Scrollbar ────────────────────────────────────────── */
+scrollbar {
+    background-color: transparent;
+    border: none;
+}
+
+scrollbar trough {
+    background-color: transparent;
+}
+
+scrollbar slider {
+    background-color: #535353;
+    border-radius: 4px;
+    min-width: 6px;
+    min-height: 6px;
+    border: none;
+}
+
+scrollbar slider:hover {
+    background-color: #808080;
+}
+
+/* ── Separator ────────────────────────────────────────── */
+separator {
+    background-color: #282828;
+    min-height: 1px;
+    min-width: 1px;
+}
