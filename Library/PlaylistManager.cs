@@ -13,7 +13,7 @@ namespace MP3Player.Library
         public string Id { get; set; } = Guid.NewGuid().ToString();
 
         [JsonPropertyName("name")]
-        public string Name { get; set; } = "Yeni Playlist";
+        public string Name { get; set; } = "New Playlist";
 
         [JsonPropertyName("tracks")]
         public List<string> Tracks { get; set; } = new();
@@ -64,7 +64,7 @@ namespace MP3Player.Library
             // Hiç playlist yoksa varsayılan bir tane oluştur
             if (_playlists.Count == 0)
             {
-                var def = new PlaylistModel { Name = "🎵 Tüm Şarkılar" };
+                var def = new PlaylistModel { Name = "All Songs" };
                 _playlists.Add(def);
                 Save(def);
             }

@@ -27,6 +27,7 @@ namespace MP3Player
         {
             SetDefaultSize(600, 420);
             Resizable = true;
+            Name = "yt-dialog";
 
             var vbox = new Box(Orientation.Vertical, 6);
             vbox.Margin = 12;
@@ -41,7 +42,7 @@ namespace MP3Player
                 PlaceholderText = "https://www.youtube.com/watch?v=...",
                 Hexpand = true
             };
-            _entryUrl.Activated += OnDownloadClicked; // Enter ile başlat
+            _entryUrl.Activated += OnDownloadClicked;
             vbox.PackStart(_entryUrl, false, false, 0);
 
             // ── Options ───────────────────────────────────────────────────────
@@ -56,11 +57,12 @@ namespace MP3Player
                 Ellipsize = Pango.EllipsizeMode.Middle
             };
             lblDest.Markup =
-                $"<small>📁 Hedef: <b>{GLib.Markup.EscapeText(MusicLibrary.LibraryDir)}</b></small>";
+                $"<small>📁 Destination: <b>{GLib.Markup.EscapeText(MusicLibrary.LibraryDir)}</b></small>";
             vbox.PackStart(lblDest, false, false, 0);
 
             // ── Progress bar ──────────────────────────────────────────────────
             _progressBar = new ProgressBar { ShowText = true, Text = "Waiting…" };
+            _progressBar.Name = "yt-progress";
             vbox.PackStart(_progressBar, false, false, 0);
 
             // ── Log view ──────────────────────────────────────────────────────
@@ -70,6 +72,7 @@ namespace MP3Player
                 WrapMode    = WrapMode.WordChar,
                 Monospace   = true
             };
+            _tvLog.Name = "yt-log";
             var scroll = new ScrolledWindow { ShadowType = ShadowType.In };
             scroll.Add(_tvLog);
             scroll.SetSizeRequest(-1, 160);
@@ -79,13 +82,14 @@ namespace MP3Player
             var hbox = new Box(Orientation.Horizontal, 8) { Halign = Align.End };
 
             _btnCancel = new Button("Cancel");
+            _btnCancel.Name = "yt-btn";
             _btnCancel.Clicked += OnCancelClicked;
 
             _btnDownload = new Button("⬇ Download")
             {
                 CanDefault = true
             };
-            _btnDownload.StyleContext.AddClass("suggested-action");
+            _btnDownload.Name = "yt-btn-download";
             _btnDownload.Clicked += OnDownloadClicked;
 
             hbox.PackStart(_btnCancel,   false, false, 0);

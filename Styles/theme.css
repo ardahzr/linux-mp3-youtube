@@ -147,6 +147,51 @@ window {
     color: #FFFFFF;
 }
 
+/* General treeview styling */
+treeview {
+    background-color: #121212;
+    color: #FFFFFF;
+}
+
+treeview:hover {
+    background-color: #1a1a1a;
+}
+
+treeview:selected {
+    background-color: #2a2a2a;
+    color: #FFFFFF;
+}
+
+treeview.view {
+    background-color: #121212;
+}
+
+treeview.view:selected {
+    background-color: #1DB954;
+    color: #000000;
+}
+
+treeview.view:selected:focus {
+    background-color: #1DB954;
+    color: #000000;
+}
+
+/* Column headers */
+#track-list header button {
+    background-color: #121212;
+    color: #A0A0A0;
+    border: none;
+    border-bottom: 1px solid #2a2a2a;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 6px 8px;
+}
+
+#track-list header button:hover {
+    background-color: #1e1e1e;
+    color: #FFFFFF;
+}
+
 #track-list-scroll {
     background-color: #121212;
 }
@@ -474,4 +519,201 @@ separator {
     background-color: #2a2a2a;
     min-height: 1px;
     min-width: 1px;
+}
+
+/* ── YouTube Download Dialog ──────────────────────────── */
+#yt-dialog {
+    background-color: #1a1a1a;
+}
+
+#yt-dialog label {
+    color: #FFFFFF;
+    background-color: transparent;
+}
+
+#yt-btn {
+    background-color: #2a2a2a;
+    color: #FFFFFF;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    padding: 6px 16px;
+}
+
+#yt-btn:hover {
+    background-color: #333333;
+    border-color: #FFFFFF;
+}
+
+#yt-btn-download {
+    background-color: #1DB954;
+    color: #000000;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 20px;
+    font-weight: bold;
+}
+
+#yt-btn-download:hover {
+    background-color: #1ed760;
+}
+
+#yt-progress trough {
+    background-color: #2a2a2a;
+    border-radius: 4px;
+    min-height: 8px;
+}
+
+#yt-progress progress {
+    background-color: #1DB954;
+    border-radius: 4px;
+}
+
+#yt-progress text {
+    color: #FFFFFF;
+    background-color: transparent;
+}
+
+#yt-log {
+    background-color: #111111;
+    color: #CCCCCC;
+    padding: 8px;
+}
+
+#yt-log text {
+    background-color: #111111;
+    color: #CCCCCC;
+}
+
+/* YouTube dialog scrolled window */
+#yt-dialog scrolledwindow {
+    background-color: #111111;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+}
+
+/* YouTube dialog overall */
+#yt-dialog {
+    background-color: #1a1a1a;
+}
+
+#yt-dialog label {
+    color: #CCCCCC;
+    background-color: transparent;
+}
+
+#yt-dialog entry {
+    background-color: #2a2a2a;
+    color: #FFFFFF;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    padding: 8px 12px;
+}
+
+#yt-dialog entry:focus {
+    border-color: #1DB954;
+}
+
+#yt-dialog checkbutton {
+    background-color: transparent;
+}
+
+#yt-dialog checkbutton label {
+    color: #CCCCCC;
+    background-color: transparent;
+}
+
+/* ── Tooltips ─────────────────────────────────────────── */
+tooltip {
+    background-color: #1e1e1e;
+    color: #FFFFFF;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+tooltip * {
+    background-color: transparent;
+    color: #FFFFFF;
+}
+
+/* ── Overshoot/Undershoot ─────────────────────────────── */
+scrolledwindow overshoot,
+scrolledwindow undershoot {
+    background-color: transparent;
+    background-image: none;
+}
+
+/* ── Selected row indicator ───────────────────────────── */
+row:selected {
+    background-color: #2a2a2a;
+}
+
+row:selected label {
+    color: #FFFFFF;
+}
+
+/* ── TreeView cell renderer ───────────────────────────── */
+treeview.view header button {
+    background-color: #1a1a1a;
+    color: #888888;
+    border: none;
+    border-bottom: 1px solid #2a2a2a;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 8px 12px;
+    text-transform: uppercase;
+}
+
+treeview.view header button:hover {
+    background-color: #2a2a2a;
+    color: #FFFFFF;
+}
+
+/* ── Stack transitions ────────────────────────────────── */
+stack {
+    background-color: #121212;
+}
+
+/* ── Box containers ───────────────────────────────────── */
+box {
+    background-color: transparent;
+}
+
+/* ── Frame styling ────────────────────────────────────── */
+frame {
+    background-color: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+}
+
+frame > border {
+    border: none;
+}
+
+/* ── Spinner animation ────────────────────────────────── */
+spinner {
+    color: #1DB954;
+}
+
+/* ── InfoBar ──────────────────────────────────────────── */
+infobar {
+    background-color: #1a1a1a;
+    color: #FFFFFF;
+    border: 1px solid #2a2a2a;
+}
+
+infobar.info {
+    background-color: #1a3a5c;
+    border-color: #2a5a8c;
+}
+
+infobar.warning {
+    background-color: #5c4a1a;
+    border-color: #8c7a2a;
+}
+
+infobar.error {
+    background-color: #5c1a1a;
+    border-color: #8c2a2a;
 }
