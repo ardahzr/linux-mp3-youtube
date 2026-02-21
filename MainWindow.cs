@@ -44,6 +44,7 @@ namespace MP3Player
         private readonly Button _btnShuffle;
         private readonly Button _btnRepeat;
         private readonly Gtk.Image _albumArtImage = new Gtk.Image();
+        private readonly Button _btnSpeed;
 
         // ── Arama ─────────────────────────────────────────────────────────────
         private readonly Entry _searchEntry;
@@ -102,7 +103,7 @@ namespace MP3Player
                 out _lblTimeElapsed, out _lblTimeTotal,
                 out _scaleProgress, out _scaleVolume,
                 out _btnPlay, out _btnShuffle, out _btnRepeat,
-                out _albumArtImage);
+                out _albumArtImage, out _btnSpeed);
             rootBox.PackEnd(playerBar, false, false, 0);
 
             // ── UI zamanlayıcı ────────────────────────────────────────────────
@@ -151,7 +152,7 @@ namespace MP3Player
             var btnOpenDir = ToolbarBtn("📁 Open Folder", (_, _) =>
                 System.Diagnostics.Process.Start("xdg-open", MusicLibrary.LibraryDir));
 
-            var btnYt = new Button("▶ YouTube Download");
+            var btnYt = new Button("▶ YouTube & Spotify Download");
             btnYt.Name = "toolbar-btn-youtube";
             btnYt.Clicked += OnYouTubeDownload;
             if (!YouTubeDownloader.IsAvailable())
@@ -269,13 +270,15 @@ namespace MP3Player
             vbox.PackStart(searchBox, false, false, 0);
 
             // Şarkı listesi
-            // Kolonlar: ▶(oynuyor), #, Ad, Süre, YOL
+            // Kolonlar: ▶(oynuyor), #, Ad, Sanatçı, Süre, Eklenme Tarihi, YOL
             store = new ListStore(
                 typeof(string),   // 0: oynatma göstergesi "▶" veya ""
                 typeof(string),   // 1: index
                 typeof(string),   // 2: şarkı adı
-                typeof(string),   // 3: süre (mm:ss)
-                typeof(string));  // 4: tam yol (gizli)
+                typeof(string),   // 3: sanatçı
+                typeof(string),   // 4: süre (mm:ss)
+                typeof(string),   // 5: eklenme tarihi
+                typeof(string));  // 6: tam yol (gizli)
 
             view = new TreeView(store)
             {
@@ -304,13 +307,27 @@ namespace MP3Player
             { Expand = true, Resizable = true, MinWidth = 200 };
             view.AppendColumn(colName);
 
+            // Sanatçı kolonu
+            var rendArtist = new CellRendererText { Ellipsize = Pango.EllipsizeMode.End };
+            rendArtist.Foreground = "#B3B3B3";
+            var colArtist = new TreeViewColumn("ARTIST", rendArtist, "text", 3)
+            { Resizable = true, MinWidth = 120 };
+            view.AppendColumn(colArtist);
+
             // Süre kolonu
             var rendDur = new CellRendererText();
             rendDur.Foreground = "#B3B3B3";
             rendDur.Xalign = 1;
-            var colDur = new TreeViewColumn("DURATION", rendDur, "text", 3)
+            var colDur = new TreeViewColumn("DURATION", rendDur, "text", 4)
             { MinWidth = 70, Alignment = 1.0f };
             view.AppendColumn(colDur);
+
+            // Eklenme tarihi kolonu
+            var rendDate = new CellRendererText();
+            rendDate.Foreground = "#727272";
+            var colDate = new TreeViewColumn("DATE ADDED", rendDate, "text", 5)
+            { MinWidth = 100, Resizable = true };
+            view.AppendColumn(colDate);
 
             view.RowActivated += OnTrackActivated;
 
@@ -331,7 +348,7 @@ namespace MP3Player
             out Label timeElapsed, out Label timeTotal,
             out Scale progress, out Scale volume,
             out Button btnPlay, out Button btnShuf, out Button btnRep,
-            out Gtk.Image albumArt)
+            out Gtk.Image albumArt, out Button btnSpeed)
         {
             var bar = new Box(Orientation.Horizontal, 0);
             bar.Name = "player-bar";
@@ -441,7 +458,20 @@ namespace MP3Player
 
             volBox.PackStart(lblVol, false, false, 0);
             volBox.PackStart(volume, true,  true,  0);
-            bar.PackEnd(volBox, false, false, 16);
+
+            // ── Speed button ──────────────────────────────────────────────────
+            btnSpeed = new Button("1.0x") { TooltipText = "Playback Speed" };
+            btnSpeed.Name = "speed-btn";
+            btnSpeed.Clicked += OnSpeedClicked;
+
+            var rightBox = new Box(Orientation.Horizontal, 8)
+            {
+                WidthRequest = 220,
+                Valign = Align.Center
+            };
+            rightBox.PackStart(btnSpeed, false, false, 0);
+            rightBox.PackStart(volBox,   true,  true,  0);
+            bar.PackEnd(rightBox, false, false, 16);
 
             return bar;
         }
@@ -548,10 +578,32 @@ namespace MP3Player
                 var indicator = (i == _currentIndex && (_audio.IsPlaying || _audio.IsPaused))
                     ? "♫" : "";
                 var duration = GetTrackDuration(path);
-                _trackStore.AppendValues(indicator, (i + 1).ToString(), name, duration, path);
+                var artist = GetTrackArtist(path);
+                var dateAdded = pl.GetDateAdded(path);
+                var dateStr = dateAdded.HasValue
+                    ? dateAdded.Value.ToLocalTime().ToString("MMM d, yyyy")
+                    : "—";
+                _trackStore.AppendValues(indicator, (i + 1).ToString(), name, artist, duration, dateStr, path);
             }
 
             UpdatePlaylistHeader();
+        }
+
+        /// <summary>MP3 dosyasının sanatçı bilgisini okur (TagLib ile)</summary>
+        private string GetTrackArtist(string path)
+        {
+            try
+            {
+                using var tagFile = TagLib.File.Create(path);
+                var artists = tagFile.Tag.Performers;
+                if (artists != null && artists.Length > 0)
+                    return string.Join(", ", artists);
+                var albumArtist = tagFile.Tag.AlbumArtists;
+                if (albumArtist != null && albumArtist.Length > 0)
+                    return string.Join(", ", albumArtist);
+                return "Unknown";
+            }
+            catch { return "Unknown"; }
         }
 
         /// <summary>MP3 dosyasının süresini okur (TagLib ile)</summary>
@@ -670,7 +722,7 @@ namespace MP3Player
         {
             _trackView.Selection.GetSelected(out _, out TreeIter iter);
             if (!_trackStore.IterIsValid(iter)) return;
-            var path = (string)_trackStore.GetValue(iter, 4);
+            var path = (string)_trackStore.GetValue(iter, 6);
             RemoveTrackByPath(path);
         }
 
@@ -744,6 +796,7 @@ namespace MP3Player
 
             try
             {
+                _audio.Speed = Speeds[_speedIndex];
                 _audio.Play(_queue[index]);
                 _audio.Volume = _scaleVolume.Value / 100.0;
             }
@@ -755,7 +808,7 @@ namespace MP3Player
 
             var name = SysPath.GetFileNameWithoutExtension(_queue[index]);
             _lblTrackName.Text   = name;
-            _lblTrackArtist.Text = "LMP";
+            _lblTrackArtist.Text = GetTrackArtist(_queue[index]);
             _btnPlay.Label = "⏸";
 
             // Load album art thumbnail
@@ -867,6 +920,20 @@ namespace MP3Player
         {
             _audio.Volume = _scaleVolume.Value / 100.0;
             _scaleVolume.TooltipText = $"{(int)_scaleVolume.Value}%";
+        }
+
+        // ── Playback speed ────────────────────────────────────────────────────
+        private static readonly double[] Speeds = { 0.5, 0.75, 1.0, 1.25, 1.5, 2.0 };
+        private int _speedIndex = 2; // default 1.0x
+
+        private void OnSpeedClicked(object? sender, EventArgs e)
+        {
+            _speedIndex = (_speedIndex + 1) % Speeds.Length;
+            var speed = Speeds[_speedIndex];
+            _audio.Speed = speed;
+            _audio.ApplySpeed();
+            _btnSpeed.Label = $"{speed:0.##}x";
+            _btnSpeed.TooltipText = $"Playback Speed: {speed:0.##}x";
         }
 
         private void OnProgressReleased(object? o, ButtonReleaseEventArgs e)
@@ -1057,13 +1124,18 @@ namespace MP3Player
             foreach (var path in _activePlaylist.Tracks)
             {
                 var name = SysPath.GetFileNameWithoutExtension(path);
-                if (name.ToLowerInvariant().Contains(query))
+                var artist = GetTrackArtist(path);
+                if (name.ToLowerInvariant().Contains(query) || artist.ToLowerInvariant().Contains(query))
                 {
                     _queue.Add(path);
                     var indicator = (_queue.Count - 1 == _currentIndex && (_audio.IsPlaying || _audio.IsPaused))
                         ? "♫" : "";
                     var duration = GetTrackDuration(path);
-                    _trackStore.AppendValues(indicator, visIdx.ToString(), name, duration, path);
+                    var dateAdded = _activePlaylist.GetDateAdded(path);
+                    var dateStr = dateAdded.HasValue
+                        ? dateAdded.Value.ToLocalTime().ToString("MMM d, yyyy")
+                        : "—";
+                    _trackStore.AppendValues(indicator, visIdx.ToString(), name, artist, duration, dateStr, path);
                     visIdx++;
                 }
             }

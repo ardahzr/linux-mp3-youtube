@@ -22,13 +22,12 @@ namespace MP3Player
         private readonly TextView      _tvLog;
         private readonly Button        _btnDownload;
         private readonly Button        _btnCancel;
-        private readonly CheckButton   _chkPlaylist;
         private readonly Box           _statusCard;
 
         public event Action<string>? FileReady;
 
         public YouTubeDownloadDialog(Window parent)
-            : base("Download Music", parent, DialogFlags.DestroyWithParent)
+            : base("YouTube & Spotify Download", parent, DialogFlags.DestroyWithParent)
         {
             SetDefaultSize(620, 480);
             Resizable = true;
@@ -41,7 +40,7 @@ namespace MP3Player
             // ── Header ────────────────────────────────────────────────────────
             var headerBox = new Box(Orientation.Horizontal, 8);
             headerBox.Name = "yt-header";
-            var headerLabel = new Label("<span size='large' weight='bold'>🎵 Download Music</span>");
+            var headerLabel = new Label("<span size='large' weight='bold'>🎵 YouTube &amp; Spotify Download</span>");
             headerLabel.UseMarkup = true;
             headerLabel.Xalign = 0;
             headerBox.PackStart(headerLabel, true, true, 0);
@@ -65,23 +64,16 @@ namespace MP3Player
             _entryUrl.Changed += OnUrlChanged;
             vbox.PackStart(_entryUrl, false, false, 0);
 
-            // ── Options row ───────────────────────────────────────────────────
-            var optionsBox = new Box(Orientation.Horizontal, 12);
-
-            _chkPlaylist = new CheckButton("📋 Playlist mode — download all videos");
-            optionsBox.PackStart(_chkPlaylist, false, false, 0);
-
+            // ── Destination label ─────────────────────────────────────────────
             var lblDest = new Label("")
             {
                 UseMarkup = true,
-                Xalign    = 1,
-                Hexpand   = true,
+                Xalign    = 0,
                 Ellipsize = Pango.EllipsizeMode.Middle
             };
             lblDest.Markup =
                 $"<small>📁 {GLib.Markup.EscapeText(MusicLibrary.LibraryDir)}</small>";
-            optionsBox.PackEnd(lblDest, false, false, 0);
-            vbox.PackStart(optionsBox, false, false, 0);
+            vbox.PackStart(lblDest, false, false, 0);
 
             // ── Separator ─────────────────────────────────────────────────────
             vbox.PackStart(new Separator(Orientation.Horizontal), false, false, 4);
@@ -202,18 +194,18 @@ namespace MP3Player
 
             if (YouTubeDownloader.IsSpotifyUrl(url))
             {
-                _lblTrackInfo.Markup = "<span color='#1DB954'>🟢 Spotify link detected</span>";
-                _chkPlaylist.Sensitive = false;  // Spotify handles playlists automatically
+                _lblTrackInfo.Markup = "<span color='#1DB954'>🟢 Spotify link detected — auto-detecting content</span>";
             }
             else if (url.Contains("youtube.com") || url.Contains("youtu.be"))
             {
-                _lblTrackInfo.Markup = "<span color='#FF0000'>▶ YouTube link detected</span>";
-                _chkPlaylist.Sensitive = true;
+                bool isList = url.Contains("list=") || url.Contains("/playlist");
+                _lblTrackInfo.Markup = isList
+                    ? "<span color='#FF0000'>▶ YouTube playlist detected</span>"
+                    : "<span color='#FF0000'>▶ YouTube link detected</span>";
             }
             else
             {
                 _lblTrackInfo.Text = "Ready to download";
-                _chkPlaylist.Sensitive = true;
             }
         }
 
@@ -236,8 +228,10 @@ namespace MP3Player
 
             AppendLog($"🎵 URL: {url}");
 
+            // Auto-detect playlist mode from URL
+            bool isPlaylist = url.Contains("list=") || url.Contains("/playlist");
             _ = _downloader.DownloadAsync(url, MusicLibrary.LibraryDir,
-                _chkPlaylist.Active, _cts.Token);
+                isPlaylist, _cts.Token);
         }
 
         // ── Cancel ────────────────────────────────────────────────────────────
@@ -261,7 +255,6 @@ namespace MP3Player
         {
             _btnDownload.Sensitive = !active;
             _entryUrl.Sensitive    = !active;
-            _chkPlaylist.Sensitive = !active;
             _btnCancel.Label       = active ? "⛔ Stop" : "Close";
         }
 

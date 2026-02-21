@@ -67,6 +67,7 @@ namespace MP3Player.Audio
         private long  _rate         = 44100;
         private int   _channels     = 2;
         private double _volume      = 1.0;
+        private double _speed       = 1.0;
 
         private volatile bool _paused = false;
         private readonly SemaphoreSlim _pauseGate = new(1, 1);
@@ -84,6 +85,13 @@ namespace MP3Player.Audio
                 if (_mh != IntPtr.Zero)
                     mpg123_volume(_mh, _volume);
             }
+        }
+
+        /// <summary>Playback speed multiplier (0.5 – 2.0). Requires restart of current track to take effect fully.</summary>
+        public double Speed
+        {
+            get => _speed;
+            set => _speed = Math.Clamp(value, 0.25, 3.0);
         }
 
         /// <summary>Toplam süre (saniye). Dosya açılmadan önce 0.</summary>
@@ -130,10 +138,13 @@ namespace MP3Player.Audio
 
             mpg123_volume(_mh, _volume);
 
+            // Apply speed by adjusting the PulseAudio playback rate
+            uint playbackRate = (uint)(_rate * _speed);
+
             var spec = new PaSampleSpec
             {
                 format   = PA_SAMPLE_S16LE,
-                rate     = (uint)_rate,
+                rate     = playbackRate,
                 channels = (byte)_channels
             };
             _pa = pa_simple_new(null, "MP3Player", PA_STREAM_PLAYBACK,
@@ -186,6 +197,34 @@ namespace MP3Player.Audio
         public void Pause()  => _paused = true;
         public void Resume() => _paused = false;
         public void TogglePause() { if (_paused) Resume(); else Pause(); }
+
+        /// <summary>
+        /// Apply speed change live by reconnecting PulseAudio with new rate.
+        /// Call this after setting Speed property during playback.
+        /// </summary>
+        public void ApplySpeed()
+        {
+            if (_pa == IntPtr.Zero || _mh == IntPtr.Zero) return;
+
+            bool wasPaused = _paused;
+            _paused = true;
+            Thread.Sleep(50); // let decode loop pause
+
+            // Reconnect PulseAudio with new rate
+            pa_simple_free(_pa);
+            uint playbackRate = (uint)(_rate * _speed);
+            var spec = new PaSampleSpec
+            {
+                format   = PA_SAMPLE_S16LE,
+                rate     = playbackRate,
+                channels = (byte)_channels
+            };
+            _pa = pa_simple_new(null, "MP3Player", PA_STREAM_PLAYBACK,
+                                null, "Müzik", ref spec,
+                                IntPtr.Zero, IntPtr.Zero, out _);
+
+            _paused = wasPaused;
+        }
 
         // ── Pozisyon atla ─────────────────────────────────────────────────────
         public void SeekTo(double seconds)

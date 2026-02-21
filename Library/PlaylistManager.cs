@@ -7,6 +7,15 @@ using System.Text.Json.Serialization;
 
 namespace MP3Player.Library
 {
+    public class TrackEntry
+    {
+        [JsonPropertyName("path")]
+        public string Path { get; set; } = "";
+
+        [JsonPropertyName("addedAt")]
+        public DateTime AddedAt { get; set; } = DateTime.UtcNow;
+    }
+
     public class PlaylistModel
     {
         [JsonPropertyName("id")]
@@ -15,11 +24,38 @@ namespace MP3Player.Library
         [JsonPropertyName("name")]
         public string Name { get; set; } = "New Playlist";
 
+        /// <summary>Legacy flat track list — kept for migration compatibility.</summary>
         [JsonPropertyName("tracks")]
         public List<string> Tracks { get; set; } = new();
 
+        /// <summary>New track entries with date added.</summary>
+        [JsonPropertyName("trackEntries")]
+        public List<TrackEntry> TrackEntries { get; set; } = new();
+
         [JsonPropertyName("createdAt")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// Migration: merge legacy Tracks list into TrackEntries.
+        /// Called after deserialization.
+        /// </summary>
+        public void MigrateToEntries()
+        {
+            if (Tracks.Count > 0 && TrackEntries.Count == 0)
+            {
+                foreach (var t in Tracks)
+                    TrackEntries.Add(new TrackEntry { Path = t, AddedAt = CreatedAt });
+            }
+            // Keep Tracks in sync for any legacy consumers
+            Tracks = TrackEntries.Select(e => e.Path).ToList();
+        }
+
+        /// <summary>Get the date a track was added to the playlist.</summary>
+        public DateTime? GetDateAdded(string path)
+        {
+            var entry = TrackEntries.FirstOrDefault(e => e.Path == path);
+            return entry?.AddedAt;
+        }
     }
 
     /// <summary>
@@ -53,8 +89,11 @@ namespace MP3Player.Library
                     var pl   = JsonSerializer.Deserialize<PlaylistModel>(json);
                     if (pl != null)
                     {
-                        // Silinmiş dosyaları filtrele
-                        pl.Tracks = pl.Tracks.Where(File.Exists).ToList();
+                        // Migrate legacy tracks to entries
+                        pl.MigrateToEntries();
+                        // Filter out deleted files
+                        pl.TrackEntries = pl.TrackEntries.Where(e => File.Exists(e.Path)).ToList();
+                        pl.Tracks = pl.TrackEntries.Select(e => e.Path).ToList();
                         _playlists.Add(pl);
                     }
                 }
@@ -114,8 +153,9 @@ namespace MP3Player.Library
         // ── Track ekle ────────────────────────────────────────────────────────
         public bool AddTrack(PlaylistModel pl, string filePath)
         {
-            if (pl.Tracks.Contains(filePath)) return false;
-            pl.Tracks.Add(filePath);
+            if (pl.TrackEntries.Any(e => e.Path == filePath)) return false;
+            pl.TrackEntries.Add(new TrackEntry { Path = filePath, AddedAt = DateTime.UtcNow });
+            pl.Tracks = pl.TrackEntries.Select(e => e.Path).ToList();
             Save(pl);
             return true;
         }
@@ -123,7 +163,8 @@ namespace MP3Player.Library
         // ── Track kaldır ──────────────────────────────────────────────────────
         public void RemoveTrack(PlaylistModel pl, string filePath)
         {
-            pl.Tracks.Remove(filePath);
+            pl.TrackEntries.RemoveAll(e => e.Path == filePath);
+            pl.Tracks = pl.TrackEntries.Select(e => e.Path).ToList();
             Save(pl);
         }
 
@@ -134,13 +175,17 @@ namespace MP3Player.Library
             bool changed = false;
             foreach (var f in libraryFiles)
             {
-                if (!first.Tracks.Contains(f))
+                if (!first.TrackEntries.Any(e => e.Path == f))
                 {
-                    first.Tracks.Add(f);
+                    first.TrackEntries.Add(new TrackEntry { Path = f, AddedAt = DateTime.UtcNow });
                     changed = true;
                 }
             }
-            if (changed) Save(first);
+            if (changed)
+            {
+                first.Tracks = first.TrackEntries.Select(e => e.Path).ToList();
+                Save(first);
+            }
         }
 
         private static string PlaylistPath(PlaylistModel pl) =>
