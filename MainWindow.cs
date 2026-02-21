@@ -835,7 +835,16 @@ namespace MP3Player
             _albumArtImage.SetFromIconName("audio-x-generic", IconSize.Dialog);
         }
 
-        private void LoadTheme()        {
+        private void LoadTheme()
+        {
+            // Force dark theme preference at GTK settings level.
+            // This overrides system theme on any desktop (GNOME, KDE, XFCE, Wayland, X11).
+            var settings = Gtk.Settings.Default;
+            if (settings != null)
+            {
+                settings.ApplicationPreferDarkTheme = true;
+            }
+
             var css = new CssProvider();
             var asm = Assembly.GetExecutingAssembly();
             using var stream = asm.GetManifestResourceStream("MP3Player.Styles.theme.css");
@@ -843,9 +852,10 @@ namespace MP3Player
             {
                 using var reader = new StreamReader(stream);
                 css.LoadFromData(reader.ReadToEnd());
+                // USER priority = highest possible, beats system/app themes
                 StyleContext.AddProviderForScreen(
                     Gdk.Screen.Default, css,
-                    Gtk.StyleProviderPriority.Application);
+                    Gtk.StyleProviderPriority.User);
             }
         }
 

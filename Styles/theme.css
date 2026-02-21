@@ -1,18 +1,185 @@
 /* ═══════════════════════════════════════════════════════
    LMP – Libuntu Music Player — Spotify-style Dark Theme
-   GTK 3.24 compatible CSS
+   GTK 3.24 compatible CSS — hardcoded colours so the app
+   looks correct on ANY desktop / theme (white, Wayland…)
    ═══════════════════════════════════════════════════════ */
 
-/* ── Genel arka plan ──────────────────────────────────── */
-window {
+/* ══ GLOBAL RESET — beat every system theme ══════════════
+   All colours are forced here so white/light system themes
+   cannot bleed through.                                   */
+* {
+    color:            #FFFFFF;
+    background-color: #121212;
+    font-family:      "Ubuntu", "Cantarell", "Noto Sans", sans-serif;
+    caret-color:      #1DB954;
+    outline-color:    transparent;
+}
+
+window,
+window decoration {
     background-color: #121212;
     color: #FFFFFF;
 }
 
-* {
-    color: #FFFFFF;
-    font-family: "Ubuntu", "Cantarell", sans-serif;
+/* ── Paned divider ────────────────────────────────────── */
+paned > separator {
+    background-color: #282828;
+    min-width: 1px;
+    min-height: 1px;
 }
+
+/* ── Dialogs ──────────────────────────────────────────── */
+dialog {
+    background-color: #1e1e1e;
+    color: #FFFFFF;
+}
+
+dialog .dialog-action-area button {
+    background-color: #333333;
+    color: #FFFFFF;
+    border: 1px solid #535353;
+    border-radius: 4px;
+    padding: 6px 16px;
+}
+
+dialog .dialog-action-area button:hover {
+    background-color: #444444;
+}
+
+/* ── Text Entry ───────────────────────────────────────── */
+entry {
+    background-color: #333333;
+    color: #FFFFFF;
+    border: 1px solid #535353;
+    border-radius: 4px;
+    padding: 6px 8px;
+    caret-color: #FFFFFF;
+}
+
+entry:focus {
+    border-color: #1DB954;
+    background-color: #3a3a3a;
+}
+
+entry selection {
+    background-color: #1DB954;
+    color: #000000;
+}
+
+/* ── TextView (YouTube log area) ─────────────────────────*/
+textview {
+    background-color: #0a0a0a;
+    color: #CCCCCC;
+}
+
+textview text {
+    background-color: #0a0a0a;
+    color: #CCCCCC;
+}
+
+textview text selection {
+    background-color: #1DB954;
+    color: #000000;
+}
+
+/* ── Generic buttons ─────────────────────────────────────*/
+button {
+    background-color: #333333;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 4px;
+}
+
+button:hover {
+    background-color: #444444;
+}
+
+button:active {
+    background-color: #1DB954;
+    color: #000000;
+}
+
+/* ── Labels – explicit white so GTK doesn't inherit system */
+label {
+    color: #FFFFFF;
+}
+
+/* ── CheckButton ─────────────────────────────────────────*/
+checkbutton label {
+    color: #FFFFFF;
+}
+
+checkbutton check {
+    background-color: #333333;
+    border: 1px solid #535353;
+    border-radius: 3px;
+}
+
+checkbutton check:checked {
+    background-color: #1DB954;
+    border-color: #1DB954;
+}
+
+/* ── ProgressBar ─────────────────────────────────────────*/
+progressbar trough {
+    background-color: #333333;
+    border-radius: 4px;
+    min-height: 8px;
+}
+
+progressbar progress {
+    background-color: #1DB954;
+    border-radius: 4px;
+}
+
+progressbar text {
+    color: #FFFFFF;
+}
+
+/* ── MessageDialog ───────────────────────────────────────*/
+messagedialog {
+    background-color: #1e1e1e;
+}
+
+messagedialog .message-area label {
+    color: #FFFFFF;
+}
+
+/* ── Right-click Menu ────────────────────────────────────*/
+menu {
+    background-color: #282828;
+    color: #FFFFFF;
+    border: 1px solid #535353;
+    border-radius: 4px;
+    padding: 4px 0;
+}
+
+menuitem {
+    background-color: transparent;
+    color: #FFFFFF;
+    padding: 6px 16px;
+}
+
+menuitem:hover {
+    background-color: #333333;
+}
+
+menuitem separator {
+    background-color: #535353;
+    min-height: 1px;
+    margin: 4px 0;
+}
+
+/* ── ScrolledWindow ──────────────────────────────────────*/
+scrolledwindow {
+    background-color: #121212;
+}
+
+/* ── Paned ───────────────────────────────────────────────*/
+paned {
+    background-color: #121212;
+}
+
 
 /* ── Sol Sidebar ──────────────────────────────────────── */
 #sidebar {
