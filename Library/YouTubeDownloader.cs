@@ -136,8 +136,15 @@ namespace MP3Player.Library
         }
 
         // ══════════════════════════════════════════════════════════════════════
-        //  SPOTIFY — Track / Album / Playlist
+        //  SPOTIFY — Track / Album / Playlist (parallel download)
         // ══════════════════════════════════════════════════════════════════════
+
+        /// <summary>Max concurrent yt-dlp downloads for Spotify playlists.</summary>
+        private const int MaxParallel = 3;
+
+        private int _completedCount;
+        private int _totalCount;
+
         private async Task DownloadSpotify(string url, string outputDir, CancellationToken ct)
         {
             Directory.CreateDirectory(outputDir);
@@ -152,20 +159,62 @@ namespace MP3Player.Library
                 return;
             }
 
-            LogMessage?.Invoke($"🟢 Found {tracks.Count} track(s) on Spotify");
+            _totalCount = tracks.Count;
+            _completedCount = 0;
+
+            LogMessage?.Invoke($"🟢 Found {_totalCount} track(s) — downloading {MaxParallel} at a time");
+
+            // Single track → just download directly
+            if (tracks.Count == 1)
+            {
+                await DownloadOneSpotifyTrack(tracks[0].title, tracks[0].artist,
+                    0, outputDir, ct);
+                ProgressPercent?.Invoke(100);
+                return;
+            }
+
+            // Parallel download with semaphore throttle
+            using var semaphore = new SemaphoreSlim(MaxParallel);
+            var tasks = new List<Task>();
 
             for (int i = 0; i < tracks.Count; i++)
             {
                 ct.ThrowIfCancellationRequested();
 
+                await semaphore.WaitAsync(ct);
+
+                var idx = i;
                 var (title, artist) = tracks[i];
+
+                var task = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await DownloadOneSpotifyTrack(title, artist, idx, outputDir, ct);
+                    }
+                    finally
+                    {
+                        semaphore.Release();
+                    }
+                }, ct);
+
+                tasks.Add(task);
+            }
+
+            await Task.WhenAll(tasks);
+            ProgressPercent?.Invoke(100);
+        }
+
+        private Task DownloadOneSpotifyTrack(string title, string artist,
+            int index, string outputDir, CancellationToken ct)
+        {
+            return Task.Run(() =>
+            {
                 var searchQuery = string.IsNullOrEmpty(artist)
                     ? title
                     : $"{artist} - {title}";
 
-                LogMessage?.Invoke($"🔍 [{i + 1}/{tracks.Count}] Searching: {searchQuery}");
-                StatusMessage?.Invoke($"[{i + 1}/{tracks.Count}] {searchQuery}");
-                ProgressPercent?.Invoke((double)i / tracks.Count * 100.0);
+                LogMessage?.Invoke($"🔍 [{index + 1}/{_totalCount}] {searchQuery}");
 
                 // Sanitize filename
                 var safeFilename = SanitizeFilename(searchQuery);
@@ -189,20 +238,26 @@ namespace MP3Player.Library
                 if (ct.IsCancellationRequested) return;
 
                 if (lastFile is null || !File.Exists(lastFile))
-                    lastFile = FindNewestMp3(outputDir);
+                {
+                    // Search for file by name pattern
+                    var pattern = $"{safeFilename}*.mp3";
+                    var matches = Directory.GetFiles(outputDir, pattern);
+                    if (matches.Length > 0) lastFile = matches[0];
+                }
 
                 if (lastFile is not null && File.Exists(lastFile))
                 {
                     DownloadCompleted?.Invoke(lastFile);
-                    LogMessage?.Invoke($"✅ Saved: {Path.GetFileName(lastFile)}");
+                    var done = Interlocked.Increment(ref _completedCount);
+                    ProgressPercent?.Invoke((double)done / _totalCount * 100.0);
+                    StatusMessage?.Invoke($"✅ {done}/{_totalCount} completed");
+                    LogMessage?.Invoke($"✅ [{done}/{_totalCount}] {Path.GetFileName(lastFile)}");
                 }
                 else
                 {
                     LogMessage?.Invoke($"⚠ Could not find: {searchQuery}");
                 }
-            }
-
-            ProgressPercent?.Invoke(100);
+            }, ct);
         }
 
         /// <summary>
