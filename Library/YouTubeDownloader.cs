@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Net.Http;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,36 +11,77 @@ using System.Threading.Tasks;
 namespace MP3Player.Library
 {
     /// <summary>
-    /// yt-dlp + ffmpeg kullanarak YouTube (ve diğer desteklenen siteler) linklerinden
-    /// en yüksek kalitede ses indirir, MP3'e dönüştürür ve ~/Documents/MP3Player'a kaydeder.
+    /// Downloads audio from YouTube and Spotify URLs as highest-quality MP3.
+    /// YouTube: uses yt-dlp directly.
+    /// Spotify: scrapes embed page for track info, then searches YouTube via yt-dlp.
     /// </summary>
     public class YouTubeDownloader
     {
         private static readonly string YtDlpBin  = "/usr/bin/yt-dlp";
         private static readonly string FfmpegBin = "/usr/bin/ffmpeg";
+        private static readonly HttpClient Http  = new();
 
-        /// <summary>İlerleme mesajı (UI'ye yansıtılır).</summary>
-        public event Action<string>? ProgressMessage;
+        // ── Events ────────────────────────────────────────────────────────────
+        /// <summary>Progress percentage 0‑100 (for progress bar).</summary>
+        public event Action<double>? ProgressPercent;
 
-        /// <summary>İndirme tamamlandığında kaydedilen dosyanın yolu döner.</summary>
+        /// <summary>Status message (shown in status label, replaces old line).</summary>
+        public event Action<string>? StatusMessage;
+
+        /// <summary>Log message (appended to log area — only important events).</summary>
+        public event Action<string>? LogMessage;
+
+        /// <summary>Fires for each completed MP3 file path.</summary>
         public event Action<string>? DownloadCompleted;
 
-        /// <summary>Hata olduğunda mesaj döner.</summary>
+        /// <summary>Error message.</summary>
         public event Action<string>? DownloadFailed;
 
-        // ── Tek URL indir ─────────────────────────────────────────────────────
-        public Task DownloadAsync(string url, string outputDir,
-                                  CancellationToken ct = default)
-            => Task.Run(() => Download(url, outputDir, ct), ct);
+        /// <summary>All downloads finished.</summary>
+        public event Action? AllCompleted;
 
-        private void Download(string url, string outputDir, CancellationToken ct)
+        // ── Public API ────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Detect URL type and download accordingly.
+        /// </summary>
+        public Task DownloadAsync(string url, string outputDir,
+                                  bool isPlaylist, CancellationToken ct = default)
+            => Task.Run(async () =>
+            {
+                try
+                {
+                    if (IsSpotifyUrl(url))
+                        await DownloadSpotify(url, outputDir, ct);
+                    else if (isPlaylist)
+                        DownloadYouTubePlaylist(url, outputDir, ct);
+                    else
+                        DownloadYouTube(url, outputDir, ct);
+
+                    if (!ct.IsCancellationRequested)
+                        AllCompleted?.Invoke();
+                }
+                catch (OperationCanceledException) { /* cancelled */ }
+                catch (Exception ex)
+                {
+                    DownloadFailed?.Invoke(ex.Message);
+                }
+            }, ct);
+
+        public static bool IsAvailable() => File.Exists(YtDlpBin) && File.Exists(FfmpegBin);
+
+        public static bool IsSpotifyUrl(string url)
+            => url.Contains("open.spotify.com/", StringComparison.OrdinalIgnoreCase)
+            || url.Contains("spotify.com/", StringComparison.OrdinalIgnoreCase);
+
+        // ══════════════════════════════════════════════════════════════════════
+        //  YOUTUBE — Single video
+        // ══════════════════════════════════════════════════════════════════════
+        private void DownloadYouTube(string url, string outputDir, CancellationToken ct)
         {
             Directory.CreateDirectory(outputDir);
+            LogMessage?.Invoke($"🎵 Downloading from YouTube…");
 
-            // Çıktı şablonu: <başlık>.mp3
-            // yt-dlp -x --audio-format mp3 --audio-quality 0 (en yüksek VBR)
-            // --ffmpeg-location ile ffmpeg konumunu belirt
-            // --embed-thumbnail --add-metadata → kapak ve etiket ekle
             var args = string.Join(" ",
                 $"\"{url}\"",
                 "-x",
@@ -50,9 +93,210 @@ namespace MP3Player.Library
                 "--parse-metadata \"%(title)s:%(meta_title)s\"",
                 "--no-playlist",
                 $"-o \"{outputDir}/%(title)s.%(ext)s\"",
-                "--newline"          // her satırda ilerleme
-            );
+                "--newline",
+                "--progress-template \"download:%(progress._percent_str)s %(progress._speed_str)s %(progress._eta_str)s\"");
 
+            string? lastFile = null;
+            RunYtDlp(args, ref lastFile, null, outputDir, ct);
+
+            if (ct.IsCancellationRequested) return;
+
+            if (lastFile is null || !File.Exists(lastFile))
+                lastFile = FindNewestMp3(outputDir);
+
+            if (lastFile is not null && File.Exists(lastFile))
+                DownloadCompleted?.Invoke(lastFile);
+            else
+                DownloadFailed?.Invoke("MP3 file not found.");
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        //  YOUTUBE — Playlist
+        // ══════════════════════════════════════════════════════════════════════
+        private void DownloadYouTubePlaylist(string url, string outputDir, CancellationToken ct)
+        {
+            Directory.CreateDirectory(outputDir);
+            LogMessage?.Invoke($"📋 Downloading YouTube playlist…");
+
+            var args = string.Join(" ",
+                $"\"{url}\"",
+                "-x",
+                "--audio-format mp3",
+                "--audio-quality 0",
+                $"--ffmpeg-location \"{FfmpegBin}\"",
+                "--embed-thumbnail",
+                "--add-metadata",
+                "--yes-playlist",
+                $"-o \"{outputDir}/%(playlist_index)02d - %(title)s.%(ext)s\"",
+                "--newline",
+                "--progress-template \"download:%(progress._percent_str)s %(progress._speed_str)s %(progress._eta_str)s\"");
+
+            string? lastFile = null;
+            RunYtDlp(args, ref lastFile, null, outputDir, ct);
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        //  SPOTIFY — Track / Album / Playlist
+        // ══════════════════════════════════════════════════════════════════════
+        private async Task DownloadSpotify(string url, string outputDir, CancellationToken ct)
+        {
+            Directory.CreateDirectory(outputDir);
+            LogMessage?.Invoke("🟢 Fetching Spotify track info…");
+            StatusMessage?.Invoke("Connecting to Spotify…");
+
+            var tracks = await GetSpotifyTracks(url, ct);
+
+            if (tracks.Count == 0)
+            {
+                DownloadFailed?.Invoke("Could not fetch track info from Spotify.");
+                return;
+            }
+
+            LogMessage?.Invoke($"🟢 Found {tracks.Count} track(s) on Spotify");
+
+            for (int i = 0; i < tracks.Count; i++)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                var (title, artist) = tracks[i];
+                var searchQuery = string.IsNullOrEmpty(artist)
+                    ? title
+                    : $"{artist} - {title}";
+
+                LogMessage?.Invoke($"🔍 [{i + 1}/{tracks.Count}] Searching: {searchQuery}");
+                StatusMessage?.Invoke($"[{i + 1}/{tracks.Count}] {searchQuery}");
+                ProgressPercent?.Invoke((double)i / tracks.Count * 100.0);
+
+                // Sanitize filename
+                var safeFilename = SanitizeFilename(searchQuery);
+
+                var args = string.Join(" ",
+                    $"\"ytsearch1:{EscapeArg(searchQuery)}\"",
+                    "-x",
+                    "--audio-format mp3",
+                    "--audio-quality 0",
+                    $"--ffmpeg-location \"{FfmpegBin}\"",
+                    "--embed-thumbnail",
+                    "--add-metadata",
+                    $"--parse-metadata \"%(title)s:%(meta_title)s\"",
+                    $"-o \"{outputDir}/{safeFilename}.%(ext)s\"",
+                    "--newline",
+                    "--progress-template \"download:%(progress._percent_str)s %(progress._speed_str)s %(progress._eta_str)s\"");
+
+                string? lastFile = null;
+                RunYtDlp(args, ref lastFile, searchQuery, outputDir, ct);
+
+                if (ct.IsCancellationRequested) return;
+
+                if (lastFile is null || !File.Exists(lastFile))
+                    lastFile = FindNewestMp3(outputDir);
+
+                if (lastFile is not null && File.Exists(lastFile))
+                {
+                    DownloadCompleted?.Invoke(lastFile);
+                    LogMessage?.Invoke($"✅ Saved: {Path.GetFileName(lastFile)}");
+                }
+                else
+                {
+                    LogMessage?.Invoke($"⚠ Could not find: {searchQuery}");
+                }
+            }
+
+            ProgressPercent?.Invoke(100);
+        }
+
+        /// <summary>
+        /// Scrapes the Spotify embed page (no API key needed) to extract track info.
+        /// Works for tracks, albums, and playlists.
+        /// </summary>
+        private async Task<List<(string title, string artist)>> GetSpotifyTracks(
+            string url, CancellationToken ct)
+        {
+            var result = new List<(string title, string artist)>();
+
+            try
+            {
+                // Convert URL to embed URL
+                // https://open.spotify.com/track/xxx → https://open.spotify.com/embed/track/xxx
+                var embedUrl = url.Replace("open.spotify.com/", "open.spotify.com/embed/");
+                if (embedUrl.Contains("?"))
+                    embedUrl = embedUrl.Substring(0, embedUrl.IndexOf('?'));
+
+                var html = await Http.GetStringAsync(embedUrl, ct);
+
+                // Extract __NEXT_DATA__ JSON
+                var match = Regex.Match(html, @"<script id=""__NEXT_DATA__""[^>]*>(.+?)</script>");
+                if (!match.Success) return result;
+
+                using var doc = JsonDocument.Parse(match.Groups[1].Value);
+                var entity = doc.RootElement
+                    .GetProperty("props")
+                    .GetProperty("pageProps")
+                    .GetProperty("state")
+                    .GetProperty("data")
+                    .GetProperty("entity");
+
+                var entityType = entity.GetProperty("type").GetString() ?? "";
+
+                if (entityType == "track")
+                {
+                    // Single track: get title + artists
+                    var title = entity.GetProperty("title").GetString() ?? "";
+                    var artist = "";
+
+                    if (entity.TryGetProperty("artists", out var artists) &&
+                        artists.ValueKind == JsonValueKind.Array &&
+                        artists.GetArrayLength() > 0)
+                    {
+                        artist = artists[0].GetProperty("name").GetString() ?? "";
+                    }
+                    else if (entity.TryGetProperty("subtitle", out var sub) &&
+                             sub.ValueKind == JsonValueKind.String)
+                    {
+                        artist = sub.GetString() ?? "";
+                    }
+
+                    if (!string.IsNullOrEmpty(title))
+                        result.Add((title, artist));
+                }
+                else if (entityType is "playlist" or "album")
+                {
+                    // Multiple tracks from trackList
+                    if (entity.TryGetProperty("trackList", out var trackList) &&
+                        trackList.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var track in trackList.EnumerateArray())
+                        {
+                            var title = track.GetProperty("title").GetString() ?? "";
+                            var artist = "";
+
+                            if (track.TryGetProperty("subtitle", out var sub) &&
+                                sub.ValueKind == JsonValueKind.String)
+                            {
+                                artist = sub.GetString() ?? "";
+                            }
+
+                            if (!string.IsNullOrEmpty(title))
+                                result.Add((title, artist));
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogMessage?.Invoke($"⚠ Spotify scrape error: {ex.Message}");
+            }
+
+            return result;
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        //  yt-dlp runner — shared between YouTube & Spotify
+        // ══════════════════════════════════════════════════════════════════════
+        private void RunYtDlp(string args, ref string? lastFile,
+                              string? trackLabel, string outputDir,
+                              CancellationToken ct)
+        {
             var psi = new ProcessStartInfo(YtDlpBin, args)
             {
                 RedirectStandardOutput = true,
@@ -61,7 +305,7 @@ namespace MP3Player.Library
                 CreateNoWindow         = true
             };
 
-            string? lastFile = null;
+            string? captured = lastFile;
 
             using var proc = new Process { StartInfo = psi };
 
@@ -71,30 +315,77 @@ namespace MP3Player.Library
                 var line = e.Data.Trim();
                 if (string.IsNullOrEmpty(line)) return;
 
-                // "Destination:" satırından dosya adını yakala
+                // Capture destination file
                 var destMatch = Regex.Match(line, @"Destination:\s*(.+\.mp3)", RegexOptions.IgnoreCase);
                 if (destMatch.Success)
-                    lastFile = destMatch.Groups[1].Value.Trim();
+                    captured = destMatch.Groups[1].Value.Trim();
 
-                // "[ExtractAudio] Destination:" satırından da yakala
                 var extMatch = Regex.Match(line, @"\[ExtractAudio\] Destination:\s*(.+\.mp3)", RegexOptions.IgnoreCase);
                 if (extMatch.Success)
-                    lastFile = extMatch.Groups[1].Value.Trim();
+                    captured = extMatch.Groups[1].Value.Trim();
 
-                // İlerleme yüzdesi: "[download]  45.2% ..."
-                var pctMatch = Regex.Match(line, @"\[download\]\s+([\d\.]+)%");
+                // Progress: "download: 45.2% 1.5MiB/s 00:12"
+                var pctMatch = Regex.Match(line, @"download:\s*([\d\.]+)%\s*(.*)");
                 if (pctMatch.Success)
-                    ProgressMessage?.Invoke($"⬇ İndiriliyor: %{pctMatch.Groups[1].Value}");
-                else if (line.StartsWith("[ffmpeg]") || line.StartsWith("[ExtractAudio]"))
-                    ProgressMessage?.Invoke($"🔄 Dönüştürülüyor…");
-                else if (line.StartsWith("[download]") && line.Contains("100%"))
-                    ProgressMessage?.Invoke("✅ İndirme tamamlandı, dönüştürülüyor…");
+                {
+                    if (double.TryParse(pctMatch.Groups[1].Value, System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out var pct))
+                    {
+                        ProgressPercent?.Invoke(pct);
+                    }
+
+                    var extra = pctMatch.Groups[2].Value.Trim();
+                    var label = trackLabel ?? "Downloading";
+                    StatusMessage?.Invoke($"⬇ {label}  {pctMatch.Groups[1].Value}%  {extra}");
+                    return;
+                }
+
+                // Legacy format: "[download]  45.2% of 5.2MiB at 1.5MiB/s ETA 00:12"
+                var legacyPct = Regex.Match(line, @"\[download\]\s+([\d\.]+)%\s+of\s+(.+)");
+                if (legacyPct.Success)
+                {
+                    if (double.TryParse(legacyPct.Groups[1].Value, System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out var pct))
+                    {
+                        ProgressPercent?.Invoke(pct);
+                    }
+                    var label = trackLabel ?? "Downloading";
+                    StatusMessage?.Invoke($"⬇ {label}  {legacyPct.Groups[1].Value}%  {legacyPct.Groups[2].Value}");
+                    return;
+                }
+
+                // Conversion stage
+                if (line.StartsWith("[ffmpeg]") || line.StartsWith("[ExtractAudio]"))
+                {
+                    StatusMessage?.Invoke("🔄 Converting to MP3…");
+                    return;
+                }
+
+                // Download finished line
+                if (line.StartsWith("[download]") && line.Contains("100%"))
+                {
+                    ProgressPercent?.Invoke(100);
+                    StatusMessage?.Invoke("✅ Download complete, converting…");
+                    return;
+                }
+
+                // Track title from [download]
+                var titleMatch = Regex.Match(line, @"\[download\] Downloading item (\d+) of (\d+)");
+                if (titleMatch.Success)
+                {
+                    LogMessage?.Invoke($"📥 Track {titleMatch.Groups[1].Value} of {titleMatch.Groups[2].Value}");
+                    return;
+                }
             };
 
             proc.ErrorDataReceived += (_, e) =>
             {
                 if (e.Data is { Length: > 0 } msg)
-                    ProgressMessage?.Invoke($"⚠ {msg}");
+                {
+                    // Suppress noisy warnings
+                    if (msg.Contains("WARNING:", StringComparison.OrdinalIgnoreCase)) return;
+                    LogMessage?.Invoke($"⚠ {msg}");
+                }
             };
 
             proc.Start();
@@ -112,102 +403,31 @@ namespace MP3Player.Library
             }
 
             proc.WaitForExit();
+            lastFile = captured;
 
-            if (proc.ExitCode != 0)
-            {
-                DownloadFailed?.Invoke($"yt-dlp çıkış kodu: {proc.ExitCode}");
-                return;
-            }
-
-            // Dosyayı bul (lastFile boşsa dizini tara)
-            if (lastFile is null || !File.Exists(lastFile))
-            {
-                var mp3s = Directory.GetFiles(outputDir, "*.mp3");
-                if (mp3s.Length > 0)
-                {
-                    // En yeni dosyayı al
-                    Array.Sort(mp3s, (a, b) =>
-                        File.GetLastWriteTime(b).CompareTo(File.GetLastWriteTime(a)));
-                    lastFile = mp3s[0];
-                }
-            }
-
-            if (lastFile is not null && File.Exists(lastFile))
-                DownloadCompleted?.Invoke(lastFile);
-            else
-                DownloadFailed?.Invoke("MP3 dosyası bulunamadı.");
+            if (proc.ExitCode != 0 && !ct.IsCancellationRequested)
+                DownloadFailed?.Invoke($"yt-dlp exit code: {proc.ExitCode}");
         }
 
-        // ── Playlist / kanal indirme ──────────────────────────────────────────
-        public Task DownloadPlaylistAsync(string url, string outputDir,
-                                          CancellationToken ct = default)
-            => Task.Run(() => DownloadPlaylist(url, outputDir, ct), ct);
+        // ── Helpers ───────────────────────────────────────────────────────────
 
-        private void DownloadPlaylist(string url, string outputDir, CancellationToken ct)
+        private static string? FindNewestMp3(string dir)
         {
-            Directory.CreateDirectory(outputDir);
-
-            var args = string.Join(" ",
-                $"\"{url}\"",
-                "-x",
-                "--audio-format mp3",
-                "--audio-quality 0",
-                $"--ffmpeg-location \"{FfmpegBin}\"",
-                "--embed-thumbnail",
-                "--add-metadata",
-                "--yes-playlist",
-                $"-o \"{outputDir}/%(playlist_index)02d - %(title)s.%(ext)s\"",
-                "--newline"
-            );
-
-            var psi = new ProcessStartInfo(YtDlpBin, args)
-            {
-                RedirectStandardOutput = true,
-                RedirectStandardError  = true,
-                UseShellExecute        = false,
-                CreateNoWindow         = true
-            };
-
-            using var proc = new Process { StartInfo = psi };
-
-            proc.OutputDataReceived += (_, e) =>
-            {
-                if (e.Data is null) return;
-                var line = e.Data.Trim();
-                if (string.IsNullOrEmpty(line)) return;
-
-                var extMatch = Regex.Match(line, @"\[ExtractAudio\] Destination:\s*(.+\.mp3)", RegexOptions.IgnoreCase);
-                if (extMatch.Success)
-                    DownloadCompleted?.Invoke(extMatch.Groups[1].Value.Trim());
-
-                var pctMatch = Regex.Match(line, @"\[download\]\s+([\d\.]+)%");
-                if (pctMatch.Success)
-                    ProgressMessage?.Invoke($"⬇ İndiriliyor: %{pctMatch.Groups[1].Value}");
-                else if (line.StartsWith("[ffmpeg]") || line.StartsWith("[ExtractAudio]"))
-                    ProgressMessage?.Invoke("🔄 Dönüştürülüyor…");
-            };
-
-            proc.ErrorDataReceived += (_, e) =>
-            {
-                if (e.Data is { Length: > 0 } msg)
-                    ProgressMessage?.Invoke($"⚠ {msg}");
-            };
-
-            proc.Start();
-            proc.BeginOutputReadLine();
-            proc.BeginErrorReadLine();
-
-            while (!proc.HasExited)
-            {
-                if (ct.IsCancellationRequested) { proc.Kill(true); return; }
-                Thread.Sleep(100);
-            }
-
-            proc.WaitForExit();
-            if (proc.ExitCode != 0)
-                DownloadFailed?.Invoke($"yt-dlp çıkış kodu: {proc.ExitCode}");
+            var mp3s = Directory.GetFiles(dir, "*.mp3");
+            if (mp3s.Length == 0) return null;
+            Array.Sort(mp3s, (a, b) =>
+                File.GetLastWriteTime(b).CompareTo(File.GetLastWriteTime(a)));
+            return mp3s[0];
         }
 
-        public static bool IsAvailable() => File.Exists(YtDlpBin) && File.Exists(FfmpegBin);
+        private static string SanitizeFilename(string name)
+        {
+            var invalid = Path.GetInvalidFileNameChars();
+            var clean = string.Join("", name.Select(c => Array.IndexOf(invalid, c) >= 0 ? '_' : c));
+            return clean.Length > 200 ? clean.Substring(0, 200) : clean;
+        }
+
+        private static string EscapeArg(string s)
+            => s.Replace("\\", "\\\\").Replace("\"", "\\\"");
     }
 }

@@ -6,66 +6,120 @@ using System.Threading;
 namespace MP3Player
 {
     /// <summary>
-    /// Dialog for entering a YouTube URL and downloading as MP3 at highest quality.
+    /// Modern download dialog supporting YouTube and Spotify URLs.
+    /// Clean progress display — no percentage spam.
     /// </summary>
     public class YouTubeDownloadDialog : Dialog
     {
         private readonly YouTubeDownloader _downloader = new();
         private CancellationTokenSource?   _cts;
 
+        // ── UI elements ───────────────────────────────────────────────────────
         private readonly Entry         _entryUrl;
-        private readonly TextView      _tvLog;
         private readonly ProgressBar   _progressBar;
+        private readonly Label         _lblStatus;
+        private readonly Label         _lblTrackInfo;
+        private readonly TextView      _tvLog;
         private readonly Button        _btnDownload;
         private readonly Button        _btnCancel;
         private readonly CheckButton   _chkPlaylist;
+        private readonly Box           _statusCard;
 
-        public event Action<string>? FileReady;   // Downloaded MP3 path
+        public event Action<string>? FileReady;
 
         public YouTubeDownloadDialog(Window parent)
-            : base("Download from YouTube", parent, DialogFlags.DestroyWithParent)
+            : base("Download Music", parent, DialogFlags.DestroyWithParent)
         {
-            SetDefaultSize(600, 420);
+            SetDefaultSize(620, 480);
             Resizable = true;
             Name = "yt-dialog";
 
-            var vbox = new Box(Orientation.Vertical, 6);
-            vbox.Margin = 12;
+            var vbox = new Box(Orientation.Vertical, 8);
+            vbox.Margin = 16;
             ContentArea.Add(vbox);
 
-            // ── URL Input ─────────────────────────────────────────────────────
-            vbox.PackStart(new Label("YouTube URL or Playlist Link:") { Xalign = 0 },
-                false, false, 0);
+            // ── Header ────────────────────────────────────────────────────────
+            var headerBox = new Box(Orientation.Horizontal, 8);
+            headerBox.Name = "yt-header";
+            var headerLabel = new Label("<span size='large' weight='bold'>🎵 Download Music</span>");
+            headerLabel.UseMarkup = true;
+            headerLabel.Xalign = 0;
+            headerBox.PackStart(headerLabel, true, true, 0);
+            vbox.PackStart(headerBox, false, false, 0);
 
+            // ── Source info label ─────────────────────────────────────────────
+            var sourceInfo = new Label("<small>Supports: YouTube · YouTube Playlists · Spotify Tracks · Spotify Albums · Spotify Playlists</small>");
+            sourceInfo.UseMarkup = true;
+            sourceInfo.Xalign = 0;
+            sourceInfo.Name = "yt-source-info";
+            vbox.PackStart(sourceInfo, false, false, 0);
+
+            // ── URL Input ─────────────────────────────────────────────────────
             _entryUrl = new Entry
             {
-                PlaceholderText = "https://www.youtube.com/watch?v=...",
+                PlaceholderText = "Paste YouTube or Spotify URL here…",
                 Hexpand = true
             };
+            _entryUrl.Name = "yt-entry";
             _entryUrl.Activated += OnDownloadClicked;
+            _entryUrl.Changed += OnUrlChanged;
             vbox.PackStart(_entryUrl, false, false, 0);
 
-            // ── Options ───────────────────────────────────────────────────────
-            _chkPlaylist = new CheckButton("Playlist / Channel — download all videos");
-            vbox.PackStart(_chkPlaylist, false, false, 0);
+            // ── Options row ───────────────────────────────────────────────────
+            var optionsBox = new Box(Orientation.Horizontal, 12);
 
-            // ── Save location ─────────────────────────────────────────────────
+            _chkPlaylist = new CheckButton("📋 Playlist mode — download all videos");
+            optionsBox.PackStart(_chkPlaylist, false, false, 0);
+
             var lblDest = new Label("")
             {
                 UseMarkup = true,
-                Xalign    = 0,
+                Xalign    = 1,
+                Hexpand   = true,
                 Ellipsize = Pango.EllipsizeMode.Middle
             };
             lblDest.Markup =
-                $"<small>📁 Destination: <b>{GLib.Markup.EscapeText(MusicLibrary.LibraryDir)}</b></small>";
-            vbox.PackStart(lblDest, false, false, 0);
+                $"<small>📁 {GLib.Markup.EscapeText(MusicLibrary.LibraryDir)}</small>";
+            optionsBox.PackEnd(lblDest, false, false, 0);
+            vbox.PackStart(optionsBox, false, false, 0);
 
-            // ── Progress bar ──────────────────────────────────────────────────
-            _progressBar = new ProgressBar { ShowText = true, Text = "Waiting…" };
+            // ── Separator ─────────────────────────────────────────────────────
+            vbox.PackStart(new Separator(Orientation.Horizontal), false, false, 4);
+
+            // ── Status Card ───────────────────────────────────────────────────
+            _statusCard = new Box(Orientation.Vertical, 6);
+            _statusCard.Name = "yt-status-card";
+            _statusCard.Margin = 0;
+
+            // Track info (shows current track name)
+            _lblTrackInfo = new Label("Ready to download");
+            _lblTrackInfo.Name = "yt-track-info";
+            _lblTrackInfo.Xalign = 0;
+            _lblTrackInfo.Ellipsize = Pango.EllipsizeMode.End;
+            _statusCard.PackStart(_lblTrackInfo, false, false, 0);
+
+            // Progress bar
+            _progressBar = new ProgressBar
+            {
+                ShowText = false,
+                Fraction = 0
+            };
             _progressBar.Name = "yt-progress";
-            vbox.PackStart(_progressBar, false, false, 0);
+            _statusCard.PackStart(_progressBar, false, false, 0);
 
-            // ── Log view ──────────────────────────────────────────────────────
+            // Status label (percentage, speed, ETA — single line, updates in place)
+            _lblStatus = new Label("Waiting…");
+            _lblStatus.Name = "yt-status-label";
+            _lblStatus.Xalign = 0;
+            _lblStatus.Ellipsize = Pango.EllipsizeMode.End;
+            _statusCard.PackStart(_lblStatus, false, false, 0);
+
+            vbox.PackStart(_statusCard, false, false, 0);
+
+            // ── Log view (compact) ────────────────────────────────────────────
+            var logExpander = new Expander("📋 Details");
+            logExpander.Name = "yt-log-expander";
+
             _tvLog = new TextView
             {
                 Editable    = false,
@@ -75,13 +129,14 @@ namespace MP3Player
             _tvLog.Name = "yt-log";
             var scroll = new ScrolledWindow { ShadowType = ShadowType.In };
             scroll.Add(_tvLog);
-            scroll.SetSizeRequest(-1, 160);
-            vbox.PackStart(scroll, true, true, 0);
+            scroll.SetSizeRequest(-1, 120);
+            logExpander.Add(scroll);
+            vbox.PackStart(logExpander, true, true, 0);
 
             // ── Buttons ───────────────────────────────────────────────────────
             var hbox = new Box(Orientation.Horizontal, 8) { Halign = Align.End };
 
-            _btnCancel = new Button("Cancel");
+            _btnCancel = new Button("Close");
             _btnCancel.Name = "yt-btn";
             _btnCancel.Clicked += OnCancelClicked;
 
@@ -97,16 +152,33 @@ namespace MP3Player
             vbox.PackStart(hbox, false, false, 4);
 
             // ── Downloader events ─────────────────────────────────────────────
-            _downloader.ProgressMessage += msg =>
+            _downloader.StatusMessage += msg =>
+                Application.Invoke((_, _) =>
+                {
+                    _lblStatus.Text = msg;
+                });
+
+            _downloader.ProgressPercent += pct =>
+                Application.Invoke((_, _) =>
+                {
+                    _progressBar.Fraction = Math.Clamp(pct / 100.0, 0, 1);
+                });
+
+            _downloader.LogMessage += msg =>
                 Application.Invoke((_, _) => AppendLog(msg));
 
             _downloader.DownloadCompleted += path =>
                 Application.Invoke((_, _) =>
                 {
-                    AppendLog($"✅ Saved: {path}");
-                    _progressBar.Text     = "Done!";
-                    _progressBar.Fraction = 1.0;
                     FileReady?.Invoke(path);
+                });
+
+            _downloader.AllCompleted += () =>
+                Application.Invoke((_, _) =>
+                {
+                    _lblTrackInfo.Markup = "<b>✅ All downloads completed!</b>";
+                    _lblStatus.Text = "Done";
+                    _progressBar.Fraction = 1.0;
                     SetDownloading(false);
                 });
 
@@ -114,12 +186,35 @@ namespace MP3Player
                 Application.Invoke((_, _) =>
                 {
                     AppendLog($"❌ Error: {err}");
-                    _progressBar.Text = "Download failed";
+                    _lblStatus.Text = "Download failed";
+                    _lblTrackInfo.Markup = "<b>❌ Download failed</b>";
                     SetDownloading(false);
                 });
 
             ShowAll();
             _btnDownload.GrabDefault();
+        }
+
+        // ── URL changed — auto detect source ─────────────────────────────────
+        private void OnUrlChanged(object? sender, EventArgs e)
+        {
+            var url = _entryUrl.Text.Trim();
+
+            if (YouTubeDownloader.IsSpotifyUrl(url))
+            {
+                _lblTrackInfo.Markup = "<span color='#1DB954'>🟢 Spotify link detected</span>";
+                _chkPlaylist.Sensitive = false;  // Spotify handles playlists automatically
+            }
+            else if (url.Contains("youtube.com") || url.Contains("youtu.be"))
+            {
+                _lblTrackInfo.Markup = "<span color='#FF0000'>▶ YouTube link detected</span>";
+                _chkPlaylist.Sensitive = true;
+            }
+            else
+            {
+                _lblTrackInfo.Text = "Ready to download";
+                _chkPlaylist.Sensitive = true;
+            }
         }
 
         // ── Download button clicked ───────────────────────────────────────────
@@ -134,33 +229,15 @@ namespace MP3Player
 
             _cts = new CancellationTokenSource();
             SetDownloading(true);
-            AppendLog($"🎵 Starting download…\n   URL: {url}");
-            _progressBar.Text     = "Connecting…";
+
+            _lblTrackInfo.Markup = "<b>🎵 Starting download…</b>";
+            _lblStatus.Text = "Connecting…";
             _progressBar.Fraction = 0;
-            _progressBar.Pulse();
 
-            // Pulse animasyonu zamanlayıcısı
-            var pulseTimer = new System.Timers.Timer(300);
-            pulseTimer.Elapsed += (_, _) =>
-                Application.Invoke((_, _) =>
-                {
-                    if (_progressBar.Fraction < 1.0)
-                        _progressBar.Pulse();
-                });
-            pulseTimer.Start();
+            AppendLog($"🎵 URL: {url}");
 
-            var token = _cts.Token;
-
-            if (_chkPlaylist.Active)
-            {
-                _ = _downloader.DownloadPlaylistAsync(url, MusicLibrary.LibraryDir, token)
-                    .ContinueWith(_ => pulseTimer.Stop());
-            }
-            else
-            {
-                _ = _downloader.DownloadAsync(url, MusicLibrary.LibraryDir, token)
-                    .ContinueWith(_ => pulseTimer.Stop());
-            }
+            _ = _downloader.DownloadAsync(url, MusicLibrary.LibraryDir,
+                _chkPlaylist.Active, _cts.Token);
         }
 
         // ── Cancel ────────────────────────────────────────────────────────────
@@ -170,6 +247,7 @@ namespace MP3Player
             {
                 _cts.Cancel();
                 AppendLog("⛔ Download cancelled.");
+                _lblStatus.Text = "Cancelled";
                 SetDownloading(false);
             }
             else
@@ -192,7 +270,6 @@ namespace MP3Player
             var buf  = _tvLog.Buffer;
             var iter = buf.EndIter;
             buf.Insert(ref iter, msg + "\n");
-            // En alta kaydır
             var endIter = buf.EndIter;
             _tvLog.ScrollToIter(endIter, 0, false, 0, 0);
         }

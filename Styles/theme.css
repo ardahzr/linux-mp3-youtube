@@ -588,8 +588,12 @@ tooltip * {
     color: #FFFFFF;
 }
 
+/* ══════════════════════════════════════════════════════════════════
+   Download Dialog — YouTube & Spotify
+   ══════════════════════════════════════════════════════════════════ */
+
 #yt-dialog {
-    background-color: #1a1a1a;
+    background-color: #121212;
 }
 
 #yt-dialog label {
@@ -597,6 +601,112 @@ tooltip * {
     background-color: transparent;
     font-weight: 500;
 }
+
+#yt-header {
+    background-color: transparent;
+    padding: 4px 0;
+}
+
+#yt-header label {
+    color: #FFFFFF;
+    font-size: 16px;
+}
+
+#yt-source-info {
+    color: #727272;
+    background-color: transparent;
+    padding: 0 0 4px 0;
+}
+
+#yt-entry {
+    background-color: #2a2a2a;
+    color: #FFFFFF;
+    border: 2px solid #333333;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 14px;
+    transition: 200ms ease;
+}
+
+#yt-entry:focus {
+    border-color: #1DB954;
+    background-color: #333333;
+}
+
+/* ── Status Card ──────────────────────────────────────── */
+
+#yt-status-card {
+    background-color: #1a1a1a;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 16px 20px;
+}
+
+#yt-track-info {
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: 600;
+    background-color: transparent;
+    padding: 0 0 6px 0;
+}
+
+#yt-status-label {
+    color: #B3B3B3;
+    font-size: 12px;
+    font-family: "JetBrains Mono", "Ubuntu Mono", monospace;
+    background-color: transparent;
+    padding: 4px 0 0 0;
+}
+
+/* ── Progress Bar ─────────────────────────────────────── */
+
+#yt-progress trough {
+    background-color: #333333;
+    border-radius: 6px;
+    min-height: 6px;
+}
+
+#yt-progress progress {
+    background-color: #1DB954;
+    border-radius: 6px;
+    min-height: 6px;
+    transition: 150ms ease;
+}
+
+/* ── Log Expander ─────────────────────────────────────── */
+
+#yt-log-expander {
+    background-color: transparent;
+    color: #727272;
+    padding: 4px 0;
+}
+
+#yt-log-expander title {
+    color: #727272;
+    background-color: transparent;
+    font-size: 12px;
+}
+
+#yt-log {
+    background-color: #0d0d0d;
+    color: #888888;
+    padding: 10px;
+    font-family: "JetBrains Mono", "Ubuntu Mono", monospace;
+    font-size: 11px;
+}
+
+#yt-log text {
+    background-color: #0d0d0d;
+    color: #888888;
+}
+
+#yt-dialog scrolledwindow {
+    background-color: #0d0d0d;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
+}
+
+/* ── Buttons ──────────────────────────────────────────── */
 
 #yt-btn {
     background-color: #2a2a2a;
@@ -626,52 +736,7 @@ tooltip * {
     background-color: #1ed760;
 }
 
-#yt-progress trough {
-    background-color: #333333;
-    border-radius: 6px;
-    min-height: 8px;
-}
-
-#yt-progress progress {
-    background-color: #1DB954;
-    border-radius: 6px;
-}
-
-#yt-progress text {
-    color: #FFFFFF;
-    background-color: transparent;
-}
-
-#yt-log {
-    background-color: #0d0d0d;
-    color: #CCCCCC;
-    padding: 12px;
-    font-family: "JetBrains Mono", "Ubuntu Mono", monospace;
-}
-
-#yt-log text {
-    background-color: #0d0d0d;
-    color: #CCCCCC;
-}
-
-#yt-dialog scrolledwindow {
-    background-color: #0d0d0d;
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 8px;
-}
-
-#yt-dialog entry {
-    background-color: #2a2a2a;
-    color: #FFFFFF;
-    border: 2px solid #333333;
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-size: 14px;
-}
-
-#yt-dialog entry:focus {
-    border-color: #1DB954;
-}
+/* ── Checkbox ─────────────────────────────────────────── */
 
 #yt-dialog checkbutton {
     background-color: transparent;
@@ -680,6 +745,12 @@ tooltip * {
 #yt-dialog checkbutton label {
     color: #B3B3B3;
     background-color: transparent;
+    font-size: 13px;
+}
+
+#yt-dialog separator {
+    background-color: rgba(255,255,255,0.06);
+    min-height: 1px;
 }
 
 row:selected {
