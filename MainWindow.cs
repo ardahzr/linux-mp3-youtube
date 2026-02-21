@@ -31,6 +31,7 @@ namespace MP3Player
         private readonly ListStore  _trackStore;    // (isPlaying:bool, idx:string, name:string, duration:string, path:string)
         private readonly TreeView   _trackView;
         private readonly Label      _lblPlaylistName;
+        private readonly Label      _lblPlaylistSubtitle;
 
         // ── Alt player bar ────────────────────────────────────────────────────
         private readonly Label  _lblTrackName;
@@ -47,6 +48,7 @@ namespace MP3Player
         // ── Zamanlayıcı ───────────────────────────────────────────────────────
         private readonly System.Timers.Timer _uiTimer;
         private bool _seeking = false;
+        private double _prevVolume = 50;  // Mute toggle için önceki ses seviyesi
 
         // ─────────────────────────────────────────────────────────────────────
         public MainWindow() : base("LMP – Libuntu Music Player")
@@ -83,7 +85,7 @@ namespace MP3Player
             midPane.Position = 230;
 
             // Sağ içerik
-            var content = BuildContent(out _trackStore, out _trackView, out _lblPlaylistName);
+            var content = BuildContent(out _trackStore, out _trackView, out _lblPlaylistName, out _lblPlaylistSubtitle);
             midPane.Pack2(content, true, true);
 
             // ── Alt player bar ────────────────────────────────────────────────
@@ -100,11 +102,17 @@ namespace MP3Player
             _uiTimer.Elapsed += OnTimerElapsed;
             _uiTimer.Start();
 
+            // ── Klavye kısayolları ────────────────────────────────────────────
+            KeyPressEvent += OnKeyPress;
+
             ShowAll();
 
             // ── Sidebar'ı doldur, aktif playlist'i yükle ─────────────────────
             RefreshSidebar();
             LoadPlaylistIntoView(_activePlaylist);
+            
+            // ── Başlangıç ses seviyesi ────────────────────────────────────────
+            _audio.Volume = 0.5;
         }
 
         // ══════════════════════════════════════════════════════════════════════
@@ -186,7 +194,7 @@ namespace MP3Player
         }
 
         // ── Orta içerik alanı ─────────────────────────────────────────────────
-        private Widget BuildContent(out ListStore store, out TreeView view, out Label plName)
+        private Widget BuildContent(out ListStore store, out TreeView view, out Label plName, out Label plSubtitle)
         {
             var vbox = new Box(Orientation.Vertical, 0);
             vbox.Name = "content-area";
@@ -199,11 +207,11 @@ namespace MP3Player
             plName = new Label("") { UseMarkup = true, Xalign = 0 };
             plName.Name = "now-playing-title";
 
-            var lblSub = new Label("Playlist") { Xalign = 0 };
-            lblSub.Name = "now-playing-subtitle";
+            plSubtitle = new Label("Playlist") { Xalign = 0 };
+            plSubtitle.Name = "now-playing-subtitle";
 
             header.PackStart(plName, false, false, 0);
-            header.PackStart(lblSub, false, false, 0);
+            header.PackStart(plSubtitle, false, false, 0);
             vbox.PackStart(header, false, false, 0);
 
             // Inner toolbar (playlist actions)
@@ -375,13 +383,14 @@ namespace MP3Player
                 Valign = Align.Center
             };
             var lblVol = new Label("🔊") { Xalign = 1 };
-            volume = new Scale(Orientation.Horizontal, 0, 150, 1)
+            volume = new Scale(Orientation.Horizontal, 0, 100, 1)
             {
                 DrawValue = false,
                 Hexpand   = true
             };
             volume.Name = "volume-scale";
-            volume.Value = 100;
+            volume.Value = 50;
+            volume.TooltipText = "50%";
             volume.ValueChanged += OnVolumeChanged;
 
             volBox.PackStart(lblVol, false, false, 0);
@@ -403,13 +412,24 @@ namespace MP3Player
             foreach (var pl in _plMgr.Playlists)
             {
                 var row  = new ListBoxRow();
+                var hbox = new Box(Orientation.Horizontal, 8);
+                var icon = new Label("🎵") { Valign = Align.Center };
                 var lbl  = new Label(pl.Name)
                 {
                     Xalign = 0,
                     Margin = 2,
-                    Ellipsize = Pango.EllipsizeMode.End
+                    Ellipsize = Pango.EllipsizeMode.End,
+                    Hexpand = true
                 };
-                row.Add(lbl);
+                var count = new Label($"{pl.Tracks.Count}")
+                {
+                    Valign = Align.Center
+                };
+                count.Name = "now-playing-subtitle";
+                hbox.PackStart(icon,  false, false, 0);
+                hbox.PackStart(lbl,   true,  true,  0);
+                hbox.PackEnd  (count, false, false, 0);
+                row.Add(hbox);
                 row.Data["playlist"] = pl;
                 _sidebarList.Add(row);
             }
@@ -491,6 +511,8 @@ namespace MP3Player
         {
             _lblPlaylistName.Markup =
                 $"<b>{GLib.Markup.EscapeText(_activePlaylist.Name)}</b>";
+            var count = _activePlaylist.Tracks.Count;
+            _lblPlaylistSubtitle.Text = $"Playlist • {count} {(count == 1 ? "song" : "songs")}";
         }
 
         // ── Şarkı listesi – çift tıkla oynat ─────────────────────────────────
@@ -672,7 +694,7 @@ namespace MP3Player
 
             var name = SysPath.GetFileNameWithoutExtension(_queue[index]);
             _lblTrackName.Text   = name;
-            _lblTrackArtist.Text = SysPath.GetFileName(SysPath.GetDirectoryName(_queue[index]) ?? "");
+            _lblTrackArtist.Text = "LMP";
             _btnPlay.Label = "⏸";
 
             // Load album art thumbnail
@@ -705,6 +727,32 @@ namespace MP3Player
             }
 
             PlayAt(next);
+        }
+
+        private void PlayPrev()
+        {
+            if (_queue.Count == 0) return;
+
+            // Eğer 3 saniyeden fazla çaldıysa şarkıyı başa sar
+            if (_audio.PositionSeconds > 3)
+            {
+                _audio.SeekTo(0);
+                return;
+            }
+
+            int prev;
+            if (_shuffle)
+            {
+                var rnd = new Random();
+                do { prev = rnd.Next(_queue.Count); }
+                while (_queue.Count > 1 && prev == _currentIndex);
+            }
+            else
+            {
+                prev = (_currentIndex - 1 + _queue.Count) % _queue.Count;
+            }
+
+            PlayAt(prev);
         }
 
         private void OnPlayPause(object? sender, EventArgs e)
@@ -755,7 +803,10 @@ namespace MP3Player
         }
 
         private void OnVolumeChanged(object? sender, EventArgs e)
-            => _audio.Volume = _scaleVolume.Value / 100.0;
+        {
+            _audio.Volume = _scaleVolume.Value / 100.0;
+            _scaleVolume.TooltipText = $"{(int)_scaleVolume.Value}%";
+        }
 
         private void OnProgressReleased(object? o, ButtonReleaseEventArgs e)
         {
@@ -905,6 +956,97 @@ namespace MP3Player
             _audio.Stop();
             _audio.Dispose();
             _plMgr.SaveAll();
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        //  KLAVYE KISAYOLLARI
+        // ══════════════════════════════════════════════════════════════════════
+        [GLib.ConnectBefore]
+        private void OnKeyPress(object sender, KeyPressEventArgs e)
+        {
+            switch (e.Event.Key)
+            {
+                case Gdk.Key.space:
+                    // Space = Play/Pause
+                    OnPlayPause(null, EventArgs.Empty);
+                    e.RetVal = true;
+                    break;
+                    
+                case Gdk.Key.Left:
+                    // Left arrow = Seek back 5 seconds
+                    if (_audio.TotalSeconds > 0)
+                    {
+                        double newPos = Math.Max(0, _audio.PositionSeconds - 5);
+                        _audio.SeekTo(newPos);
+                    }
+                    e.RetVal = true;
+                    break;
+                    
+                case Gdk.Key.Right:
+                    // Right arrow = Seek forward 5 seconds
+                    if (_audio.TotalSeconds > 0)
+                    {
+                        double newPos = Math.Min(_audio.TotalSeconds, _audio.PositionSeconds + 5);
+                        _audio.SeekTo(newPos);
+                    }
+                    e.RetVal = true;
+                    break;
+                    
+                case Gdk.Key.Up:
+                    // Up arrow = Volume up 5%
+                    _scaleVolume.Value = Math.Min(100, _scaleVolume.Value + 5);
+                    e.RetVal = true;
+                    break;
+                    
+                case Gdk.Key.Down:
+                    // Down arrow = Volume down 5%
+                    _scaleVolume.Value = Math.Max(0, _scaleVolume.Value - 5);
+                    e.RetVal = true;
+                    break;
+                    
+                case Gdk.Key.m:
+                case Gdk.Key.M:
+                    // M = Mute/Unmute toggle
+                    if (_scaleVolume.Value > 0)
+                    {
+                        _prevVolume = _scaleVolume.Value;
+                        _scaleVolume.Value = 0;
+                    }
+                    else
+                    {
+                        _scaleVolume.Value = _prevVolume > 0 ? _prevVolume : 50;
+                    }
+                    e.RetVal = true;
+                    break;
+                    
+                case Gdk.Key.n:
+                case Gdk.Key.N:
+                    // N = Next track
+                    PlayNext();
+                    e.RetVal = true;
+                    break;
+                    
+                case Gdk.Key.b:
+                case Gdk.Key.B:
+                    // B = Back/Previous track
+                    PlayPrev();
+                    e.RetVal = true;
+                    break;
+                    
+                case Gdk.Key.s:
+                case Gdk.Key.S:
+                    // S = Toggle shuffle
+                    OnToggleShuffle(null, EventArgs.Empty);
+                    e.RetVal = true;
+                    break;
+                    
+                case Gdk.Key.r:
+                case Gdk.Key.R:
+                    // R = Toggle repeat
+                    OnToggleRepeat(null, EventArgs.Empty);
+                    e.RetVal = true;
+                    break;
+            }
         }
     }
 

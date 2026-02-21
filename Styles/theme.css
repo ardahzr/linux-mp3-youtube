@@ -1,72 +1,72 @@
-/* ═══════════════════════════════════════════════════════
-   LMP – Libuntu Music Player
-   Dark theme — works on X11, Wayland, any desktop/theme
-   ═══════════════════════════════════════════════════════ */
+/* LMP – Libuntu Music Player — Premium Dark Theme */
 
-/* ── Global reset: override ANY system theme ─────────── */
 * {
-    color:            #FFFFFF;
+    color: #E0E0E0;
     background-color: #121212;
-    font-family:      "Ubuntu", "Cantarell", "Noto Sans", sans-serif;
-    outline-color:    transparent;
+    font-family: "Inter", "Ubuntu", "Cantarell", "Noto Sans", sans-serif;
+    outline-color: transparent;
+    -gtk-icon-shadow: none;
+    text-shadow: none;
 }
 
 window {
     background-color: #121212;
 }
 
-/* ── Sidebar ──────────────────────────────────────────── */
 #sidebar {
-    background-color: #0a0a0a;
-    border-right: 1px solid #2a2a2a;
-    min-width: 220px;
+    background-color: #000000;
+    border-right: none;
+    min-width: 240px;
 }
 
 #sidebar-header {
-    background-color: #0a0a0a;
-    padding: 16px 12px 8px 12px;
+    background-color: #000000;
+    padding: 20px 18px 10px 18px;
 }
 
 #sidebar-header label {
     font-size: 11px;
-    font-weight: bold;
-    color: #A0A0A0;
+    font-weight: 800;
+    color: #727272;
 }
 
 #btn-new-playlist {
     background-color: transparent;
     border: none;
-    color: #A0A0A0;
+    color: #727272;
     padding: 4px 8px;
-    font-size: 18px;
+    font-size: 20px;
     border-radius: 50%;
-    min-width: 28px;
-    min-height: 28px;
+    min-width: 32px;
+    min-height: 32px;
+    transition: 200ms ease;
 }
 
 #btn-new-playlist:hover {
     color: #FFFFFF;
-    background-color: #2a2a2a;
+    background-color: rgba(255,255,255,0.1);
 }
 
 #playlist-list {
-    background-color: #0a0a0a;
+    background-color: #000000;
 }
 
 #playlist-list row {
-    padding: 8px 12px;
-    border-radius: 6px;
-    margin: 1px 6px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    margin: 2px 8px;
     background-color: transparent;
+    transition: 200ms ease;
 }
 
 #playlist-list row label {
     color: #B3B3B3;
     font-size: 14px;
+    font-weight: 500;
 }
 
 #playlist-list row:hover {
-    background-color: #1e1e1e;
+    background-color: #1A1A1A;
 }
 
 #playlist-list row:hover label {
@@ -78,79 +78,79 @@ window {
 }
 
 #playlist-list row:selected label {
-    color: #FFFFFF;
-    font-weight: bold;
+    color: #1DB954;
+    font-weight: 700;
 }
 
-/* ── Content area ─────────────────────────────────────── */
 #content-area {
     background-color: #121212;
 }
 
 #content-header {
-    background-color: #1e1e1e;
-    padding: 20px 24px 14px 24px;
-    border-bottom: 1px solid #2a2a2a;
+    background: linear-gradient(180deg, #1a1a2e 0%, #16213e 40%, #121212 100%);
+    padding: 36px 32px 24px 32px;
+    border-bottom: none;
 }
 
 #now-playing-title {
-    font-size: 22px;
-    font-weight: bold;
+    font-size: 28px;
+    font-weight: 900;
     color: #FFFFFF;
 }
 
 #now-playing-subtitle {
-    font-size: 12px;
+    font-size: 13px;
     color: #A0A0A0;
+    font-weight: 400;
 }
 
-/* ── Toolbar buttons ──────────────────────────────────── */
 #toolbar {
     background-color: #0a0a0a;
-    border-bottom: 1px solid #2a2a2a;
-    padding: 6px 12px;
+    border-bottom: none;
+    padding: 8px 16px;
 }
 
 #toolbar-btn {
     background-color: transparent;
-    border: 1px solid #3a3a3a;
-    border-radius: 20px;
-    color: #CCCCCC;
+    border: 1px solid #333333;
+    border-radius: 24px;
+    color: #B3B3B3;
     font-size: 12px;
-    padding: 4px 14px;
-    margin: 0 2px;
+    font-weight: 600;
+    padding: 6px 18px;
+    margin: 0 3px;
+    transition: 200ms ease;
 }
 
 #toolbar-btn:hover {
     border-color: #FFFFFF;
     color: #FFFFFF;
-    background-color: #2a2a2a;
+    background-color: rgba(255,255,255,0.08);
 }
 
 #toolbar-btn-youtube {
-    background-color: #CC0000;
+    background-color: #FF0000;
     border: none;
-    border-radius: 20px;
+    border-radius: 24px;
     color: #FFFFFF;
     font-size: 12px;
-    padding: 5px 14px;
-    font-weight: bold;
+    padding: 7px 20px;
+    font-weight: 800;
+    transition: 200ms ease;
 }
 
 #toolbar-btn-youtube:hover {
-    background-color: #E60000;
+    background-color: #FF3333;
 }
 
-/* ── Track list ───────────────────────────────────────── */
 #track-list {
     background-color: #121212;
-    color: #FFFFFF;
+    color: #E0E0E0;
 }
 
-/* General treeview styling */
 treeview {
     background-color: #121212;
-    color: #FFFFFF;
+    color: #E0E0E0;
 }
 
 treeview:hover {
@@ -158,7 +158,7 @@ treeview:hover {
 }
 
 treeview:selected {
-    background-color: #2a2a2a;
+    background-color: rgba(255,255,255,0.1);
     color: #FFFFFF;
 }
 
@@ -167,29 +167,30 @@ treeview.view {
 }
 
 treeview.view:selected {
-    background-color: #1DB954;
-    color: #000000;
+    background-color: rgba(29,185,84,0.25);
+    color: #FFFFFF;
 }
 
 treeview.view:selected:focus {
-    background-color: #1DB954;
-    color: #000000;
-}
-
-/* Column headers */
-#track-list header button {
-    background-color: #121212;
-    color: #A0A0A0;
-    border: none;
-    border-bottom: 1px solid #2a2a2a;
-    font-size: 11px;
-    font-weight: bold;
-    padding: 6px 8px;
-}
-
-#track-list header button:hover {
-    background-color: #1e1e1e;
+    background-color: rgba(29,185,84,0.35);
     color: #FFFFFF;
+}
+
+#track-list header button,
+treeview.view header button {
+    background-color: #121212;
+    color: #727272;
+    border: none;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 10px 12px;
+}
+
+#track-list header button:hover,
+treeview.view header button:hover {
+    background-color: #1a1a1a;
+    color: #B3B3B3;
 }
 
 #track-list-scroll {
@@ -197,31 +198,31 @@ treeview.view:selected:focus {
 }
 
 #track-list row {
-    padding: 3px 16px;
-    border-radius: 4px;
-    margin: 0 4px;
-    background-color: #121212;
+    padding: 4px 16px;
+    border-radius: 6px;
+    margin: 0 8px;
+    background-color: transparent;
+    transition: 200ms ease;
 }
 
 #track-list row:hover {
-    background-color: #1e1e1e;
+    background-color: rgba(255,255,255,0.06);
 }
 
 #track-list row:selected {
-    background-color: #2a2a2a;
+    background-color: rgba(255,255,255,0.1);
 }
 
-/* ── Player bar ───────────────────────────────────────── */
 #player-bar {
-    background-color: #0a0a0a;
-    border-top: 1px solid #2a2a2a;
-    padding: 10px 16px;
-    min-height: 80px;
+    background-color: #181818;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    padding: 12px 24px;
+    min-height: 90px;
 }
 
 #player-album-art {
-    border-radius: 4px;
-    margin-right: 10px;
+    border-radius: 6px;
+    margin-right: 14px;
 }
 
 #player-track-info label {
@@ -230,31 +231,32 @@ treeview.view:selected:focus {
 }
 
 #player-track-name {
-    font-size: 13px;
-    font-weight: bold;
+    font-size: 14px;
+    font-weight: 700;
     color: #FFFFFF;
 }
 
 #player-track-artist {
     font-size: 11px;
-    color: #A0A0A0;
+    color: #B3B3B3;
+    font-weight: 400;
 }
 
-/* ── Control buttons ──────────────────────────────────── */
 #control-btn {
     background-color: transparent;
     border: none;
-    color: #A0A0A0;
-    font-size: 15px;
-    padding: 4px 6px;
+    color: #B3B3B3;
+    font-size: 16px;
+    padding: 6px 8px;
     border-radius: 50%;
-    min-width: 32px;
-    min-height: 32px;
+    min-width: 36px;
+    min-height: 36px;
+    transition: 200ms ease;
 }
 
 #control-btn:hover {
     color: #FFFFFF;
-    background-color: #2a2a2a;
+    background-color: rgba(255,255,255,0.08);
 }
 
 #control-btn-play {
@@ -263,67 +265,96 @@ treeview.view:selected:focus {
     border-radius: 50%;
     padding: 0;
     color: #000000;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: bold;
-    min-width: 36px;
-    min-height: 36px;
+    min-width: 42px;
+    min-height: 42px;
+    transition: 200ms ease;
 }
 
 #control-btn-play:hover {
     background-color: #1ed760;
+    min-width: 44px;
+    min-height: 44px;
 }
 
-/* ── Progress slider ──────────────────────────────────── */
 #progress-scale trough {
-    background-color: #3a3a3a;
-    border-radius: 2px;
+    background-color: #404040;
+    border-radius: 3px;
     min-height: 4px;
+    transition: 200ms ease;
 }
 
 #progress-scale highlight {
+    background-color: #B3B3B3;
+    border-radius: 3px;
+    transition: 200ms ease;
+}
+
+#progress-scale:hover highlight {
     background-color: #1DB954;
-    border-radius: 2px;
+}
+
+#progress-scale:hover trough {
+    min-height: 6px;
 }
 
 #progress-scale slider {
-    background-color: #FFFFFF;
+    background-color: transparent;
     border-radius: 50%;
-    min-width: 12px;
-    min-height: 12px;
-    margin: -4px 0;
+    min-width: 0px;
+    min-height: 0px;
+    margin: 0;
     border: none;
+    transition: 200ms ease;
 }
 
-/* ── Volume slider ────────────────────────────────────── */
+#progress-scale:hover slider {
+    background-color: #FFFFFF;
+    min-width: 14px;
+    min-height: 14px;
+    margin: -5px 0;
+}
+
 #volume-scale trough {
-    background-color: #3a3a3a;
-    border-radius: 2px;
+    background-color: #404040;
+    border-radius: 3px;
     min-height: 4px;
 }
 
 #volume-scale highlight {
+    background-color: #B3B3B3;
+    border-radius: 3px;
+}
+
+#volume-scale:hover highlight {
     background-color: #1DB954;
-    border-radius: 2px;
 }
 
 #volume-scale slider {
-    background-color: #FFFFFF;
+    background-color: transparent;
     border-radius: 50%;
-    min-width: 10px;
-    min-height: 10px;
-    margin: -3px 0;
+    min-width: 0px;
+    min-height: 0px;
+    margin: 0;
     border: none;
 }
 
-/* ── Time labels ──────────────────────────────────────── */
+#volume-scale:hover slider {
+    background-color: #FFFFFF;
+    min-width: 12px;
+    min-height: 12px;
+    margin: -4px 0;
+}
+
 #time-label {
     font-size: 11px;
     color: #A0A0A0;
     background-color: transparent;
-    font-family: monospace;
+    font-family: "JetBrains Mono", "Ubuntu Mono", "Fira Code", monospace;
+    font-weight: 500;
 }
 
-/* ── Scrollbar ────────────────────────────────────────── */
 scrollbar {
     background-color: transparent;
     border: none;
@@ -334,32 +365,43 @@ scrollbar trough {
 }
 
 scrollbar slider {
-    background-color: #3a3a3a;
-    border-radius: 4px;
-    min-width: 6px;
-    min-height: 6px;
+    background-color: rgba(255,255,255,0.12);
+    border-radius: 10px;
+    min-width: 8px;
+    min-height: 24px;
     border: none;
+    transition: 200ms ease;
 }
 
 scrollbar slider:hover {
-    background-color: #606060;
+    background-color: rgba(255,255,255,0.3);
 }
 
-/* ── Paned divider ────────────────────────────────────── */
+scrollbar slider:active {
+    background-color: rgba(255,255,255,0.5);
+}
+
+scrolledwindow overshoot,
+scrolledwindow undershoot {
+    background-color: transparent;
+    background-image: none;
+}
+
 paned > separator {
-    background-color: #2a2a2a;
+    background-color: rgba(255,255,255,0.04);
     min-width: 1px;
     min-height: 1px;
 }
 
-/* ── Text Entry ───────────────────────────────────────── */
 entry {
     background-color: #2a2a2a;
     color: #FFFFFF;
-    border: 1px solid #3a3a3a;
-    border-radius: 6px;
-    padding: 6px 10px;
-    caret-color: #FFFFFF;
+    border: 2px solid #333333;
+    border-radius: 8px;
+    padding: 8px 14px;
+    caret-color: #1DB954;
+    font-size: 14px;
+    transition: 200ms ease;
 }
 
 entry:focus {
@@ -372,31 +414,32 @@ entry selection {
     color: #000000;
 }
 
-/* ── Dialogs ──────────────────────────────────────────── */
 dialog {
     background-color: #1a1a1a;
     color: #FFFFFF;
+    border-radius: 12px;
 }
 
 dialog .dialog-action-area {
     background-color: #1a1a1a;
-    padding: 8px;
+    padding: 12px;
 }
 
 dialog .dialog-action-area button {
     background-color: #2a2a2a;
     color: #FFFFFF;
     border: 1px solid #3a3a3a;
-    border-radius: 6px;
-    padding: 6px 16px;
+    border-radius: 24px;
+    padding: 8px 24px;
+    font-weight: 600;
+    transition: 200ms ease;
 }
 
 dialog .dialog-action-area button:hover {
-    background-color: #333333;
+    background-color: #3a3a3a;
     border-color: #FFFFFF;
 }
 
-/* ── MessageDialog ────────────────────────────────────── */
 messagedialog {
     background-color: #1a1a1a;
 }
@@ -408,29 +451,31 @@ messagedialog .message-area {
 messagedialog .message-area label {
     color: #FFFFFF;
     background-color: transparent;
+    font-size: 14px;
 }
 
 messagedialog .dialog-action-area button {
     background-color: #2a2a2a;
     color: #FFFFFF;
     border: 1px solid #3a3a3a;
-    border-radius: 6px;
-    padding: 6px 16px;
+    border-radius: 24px;
+    padding: 8px 24px;
+    font-weight: 600;
 }
 
 messagedialog .dialog-action-area button:hover {
-    background-color: #333333;
+    background-color: #3a3a3a;
 }
 
-/* ── TextView (YouTube log) ───────────────────────────── */
 textview {
-    background-color: #111111;
+    background-color: #0d0d0d;
     color: #CCCCCC;
     font-size: 12px;
+    font-family: "JetBrains Mono", "Ubuntu Mono", monospace;
 }
 
 textview text {
-    background-color: #111111;
+    background-color: #0d0d0d;
     color: #CCCCCC;
 }
 
@@ -439,16 +484,15 @@ textview text selection {
     color: #000000;
 }
 
-/* ── ProgressBar (YouTube download) ──────────────────── */
 progressbar trough {
-    background-color: #2a2a2a;
-    border-radius: 4px;
+    background-color: #333333;
+    border-radius: 6px;
     min-height: 8px;
 }
 
 progressbar progress {
     background-color: #1DB954;
-    border-radius: 4px;
+    border-radius: 6px;
 }
 
 progressbar text {
@@ -456,23 +500,22 @@ progressbar text {
     background-color: transparent;
 }
 
-/* ── CheckButton ──────────────────────────────────────── */
 checkbutton {
     background-color: transparent;
-    color: #CCCCCC;
+    color: #B3B3B3;
 }
 
 checkbutton label {
-    color: #CCCCCC;
+    color: #B3B3B3;
     background-color: transparent;
 }
 
 checkbutton check {
     background-color: #2a2a2a;
-    border: 1px solid #3a3a3a;
-    border-radius: 3px;
-    min-width: 16px;
-    min-height: 16px;
+    border: 2px solid #404040;
+    border-radius: 4px;
+    min-width: 18px;
+    min-height: 18px;
 }
 
 checkbutton check:checked {
@@ -480,67 +523,92 @@ checkbutton check:checked {
     border-color: #1DB954;
 }
 
-/* ── Right-click Menu ─────────────────────────────────── */
 menu {
-    background-color: #1e1e1e;
+    background-color: #282828;
     color: #FFFFFF;
-    border: 1px solid #3a3a3a;
-    border-radius: 6px;
-    padding: 4px 0;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 6px 0;
 }
 
 menuitem {
     background-color: transparent;
-    color: #CCCCCC;
-    padding: 7px 16px;
+    color: #E0E0E0;
+    padding: 10px 20px;
     font-size: 13px;
+    font-weight: 500;
+    transition: 200ms ease;
 }
 
 menuitem:hover {
-    background-color: #2a2a2a;
+    background-color: rgba(255,255,255,0.1);
     color: #FFFFFF;
 }
 
-/* ── Generic fallback button ──────────────────────────── */
 button {
     background-color: #2a2a2a;
     color: #FFFFFF;
     border: none;
-    border-radius: 6px;
-    padding: 4px 10px;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-weight: 500;
+    transition: 200ms ease;
 }
 
 button:hover {
-    background-color: #333333;
+    background-color: #3a3a3a;
 }
 
-/* ── Separator ────────────────────────────────────────── */
 separator {
-    background-color: #2a2a2a;
+    background-color: rgba(255,255,255,0.06);
     min-height: 1px;
     min-width: 1px;
 }
 
-/* ── YouTube Download Dialog ──────────────────────────── */
+box {
+    background-color: transparent;
+}
+
+label {
+    background-color: transparent;
+}
+
+tooltip {
+    background-color: #282828;
+    color: #FFFFFF;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+tooltip * {
+    background-color: transparent;
+    color: #FFFFFF;
+}
+
 #yt-dialog {
     background-color: #1a1a1a;
 }
 
 #yt-dialog label {
-    color: #FFFFFF;
+    color: #B3B3B3;
     background-color: transparent;
+    font-weight: 500;
 }
 
 #yt-btn {
     background-color: #2a2a2a;
     color: #FFFFFF;
     border: 1px solid #3a3a3a;
-    border-radius: 6px;
-    padding: 6px 16px;
+    border-radius: 24px;
+    padding: 8px 20px;
+    font-weight: 600;
 }
 
 #yt-btn:hover {
-    background-color: #333333;
+    background-color: #3a3a3a;
     border-color: #FFFFFF;
 }
 
@@ -548,9 +616,10 @@ separator {
     background-color: #1DB954;
     color: #000000;
     border: none;
-    border-radius: 6px;
-    padding: 6px 20px;
-    font-weight: bold;
+    border-radius: 24px;
+    padding: 8px 28px;
+    font-weight: 800;
+    font-size: 13px;
 }
 
 #yt-btn-download:hover {
@@ -558,14 +627,14 @@ separator {
 }
 
 #yt-progress trough {
-    background-color: #2a2a2a;
-    border-radius: 4px;
+    background-color: #333333;
+    border-radius: 6px;
     min-height: 8px;
 }
 
 #yt-progress progress {
     background-color: #1DB954;
-    border-radius: 4px;
+    border-radius: 6px;
 }
 
 #yt-progress text {
@@ -574,39 +643,30 @@ separator {
 }
 
 #yt-log {
-    background-color: #111111;
+    background-color: #0d0d0d;
     color: #CCCCCC;
-    padding: 8px;
+    padding: 12px;
+    font-family: "JetBrains Mono", "Ubuntu Mono", monospace;
 }
 
 #yt-log text {
-    background-color: #111111;
+    background-color: #0d0d0d;
     color: #CCCCCC;
 }
 
-/* YouTube dialog scrolled window */
 #yt-dialog scrolledwindow {
-    background-color: #111111;
-    border: 1px solid #2a2a2a;
-    border-radius: 6px;
-}
-
-/* YouTube dialog overall */
-#yt-dialog {
-    background-color: #1a1a1a;
-}
-
-#yt-dialog label {
-    color: #CCCCCC;
-    background-color: transparent;
+    background-color: #0d0d0d;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
 }
 
 #yt-dialog entry {
     background-color: #2a2a2a;
     color: #FFFFFF;
-    border: 1px solid #3a3a3a;
-    border-radius: 6px;
-    padding: 8px 12px;
+    border: 2px solid #333333;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 14px;
 }
 
 #yt-dialog entry:focus {
@@ -618,102 +678,32 @@ separator {
 }
 
 #yt-dialog checkbutton label {
-    color: #CCCCCC;
+    color: #B3B3B3;
     background-color: transparent;
 }
 
-/* ── Tooltips ─────────────────────────────────────────── */
-tooltip {
-    background-color: #1e1e1e;
-    color: #FFFFFF;
-    border: 1px solid #3a3a3a;
-    border-radius: 6px;
-    padding: 4px 8px;
-    font-size: 12px;
-}
-
-tooltip * {
-    background-color: transparent;
-    color: #FFFFFF;
-}
-
-/* ── Overshoot/Undershoot ─────────────────────────────── */
-scrolledwindow overshoot,
-scrolledwindow undershoot {
-    background-color: transparent;
-    background-image: none;
-}
-
-/* ── Selected row indicator ───────────────────────────── */
 row:selected {
-    background-color: #2a2a2a;
+    background-color: rgba(255,255,255,0.1);
 }
 
 row:selected label {
     color: #FFFFFF;
 }
 
-/* ── TreeView cell renderer ───────────────────────────── */
-treeview.view header button {
-    background-color: #1a1a1a;
-    color: #888888;
-    border: none;
-    border-bottom: 1px solid #2a2a2a;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 8px 12px;
-    text-transform: uppercase;
-}
-
-treeview.view header button:hover {
-    background-color: #2a2a2a;
-    color: #FFFFFF;
-}
-
-/* ── Stack transitions ────────────────────────────────── */
-stack {
-    background-color: #121212;
-}
-
-/* ── Box containers ───────────────────────────────────── */
-box {
-    background-color: transparent;
-}
-
-/* ── Frame styling ────────────────────────────────────── */
 frame {
     background-color: #1a1a1a;
-    border: 1px solid #2a2a2a;
-    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
 }
 
 frame > border {
     border: none;
 }
 
-/* ── Spinner animation ────────────────────────────────── */
 spinner {
     color: #1DB954;
 }
 
-/* ── InfoBar ──────────────────────────────────────────── */
-infobar {
-    background-color: #1a1a1a;
-    color: #FFFFFF;
-    border: 1px solid #2a2a2a;
-}
-
-infobar.info {
-    background-color: #1a3a5c;
-    border-color: #2a5a8c;
-}
-
-infobar.warning {
-    background-color: #5c4a1a;
-    border-color: #8c7a2a;
-}
-
-infobar.error {
-    background-color: #5c1a1a;
-    border-color: #8c2a2a;
+stack {
+    background-color: #121212;
 }

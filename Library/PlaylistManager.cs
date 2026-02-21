@@ -68,6 +68,9 @@ namespace MP3Player.Library
                 _playlists.Add(def);
                 Save(def);
             }
+
+            // Migration: Türkçe playlist isimlerini İngilizce'ye çevir
+            MigrateTurkishNames();
         }
 
         // ── Kaydet ───────────────────────────────────────────────────────────
@@ -142,5 +145,27 @@ namespace MP3Player.Library
 
         private static string PlaylistPath(PlaylistModel pl) =>
             System.IO.Path.Combine(PlaylistsDir, $"{pl.Id}.json");
+
+        /// <summary>
+        /// Migration: Türkçe playlist isimlerini İngilizce'ye çevir
+        /// </summary>
+        private void MigrateTurkishNames()
+        {
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Tüm Şarkılar",   "All Songs" },
+                { "🎵 Tüm Şarkılar", "🎵 All Songs" },
+                { "Yeni Playlist",   "New Playlist" },
+            };
+
+            foreach (var pl in _playlists)
+            {
+                if (map.TryGetValue(pl.Name, out var eng))
+                {
+                    pl.Name = eng;
+                    Save(pl);
+                }
+            }
+        }
     }
 }
