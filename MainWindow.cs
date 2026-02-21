@@ -45,6 +45,14 @@ namespace MP3Player
         private readonly Button _btnRepeat;
         private readonly Gtk.Image _albumArtImage = new Gtk.Image();
 
+        // ── Arama ─────────────────────────────────────────────────────────────
+        private readonly Entry _searchEntry;
+
+        // ── Sleep Timer ───────────────────────────────────────────────────────
+        private System.Timers.Timer? _sleepTimer;
+        private Label? _lblSleepTimer;
+        private int _sleepMinutesRemaining = 0;
+
         // ── Zamanlayıcı ───────────────────────────────────────────────────────
         private readonly System.Timers.Timer _uiTimer;
         private bool _seeking = false;
@@ -85,7 +93,7 @@ namespace MP3Player
             midPane.Position = 230;
 
             // Sağ içerik
-            var content = BuildContent(out _trackStore, out _trackView, out _lblPlaylistName, out _lblPlaylistSubtitle);
+            var content = BuildContent(out _trackStore, out _trackView, out _lblPlaylistName, out _lblPlaylistSubtitle, out _searchEntry);
             midPane.Pack2(content, true, true);
 
             // ── Alt player bar ────────────────────────────────────────────────
@@ -104,6 +112,9 @@ namespace MP3Player
 
             // ── Klavye kısayolları ────────────────────────────────────────────
             KeyPressEvent += OnKeyPress;
+
+            // ── Drag & Drop ───────────────────────────────────────────────────
+            SetupDragAndDrop();
 
             ShowAll();
 
@@ -194,7 +205,7 @@ namespace MP3Player
         }
 
         // ── Orta içerik alanı ─────────────────────────────────────────────────
-        private Widget BuildContent(out ListStore store, out TreeView view, out Label plName, out Label plSubtitle)
+        private Widget BuildContent(out ListStore store, out TreeView view, out Label plName, out Label plSubtitle, out Entry searchEntry)
         {
             var vbox = new Box(Orientation.Vertical, 0);
             vbox.Name = "content-area";
@@ -223,26 +234,53 @@ namespace MP3Player
             var btnRenamePlaylist = ToolbarBtn("✏ Rename", OnRenamePlaylist);
             var btnDeletePlaylist = ToolbarBtn("🗑 Delete Playlist", OnDeletePlaylist);
 
+            // Sleep Timer button
+            var btnSleep = ToolbarBtn("🌙 Sleep Timer", OnSleepTimer);
+            
             innerToolbar.PackStart(btnAddToPlaylist,   false, false, 0);
             innerToolbar.PackStart(btnRemoveTrack,     false, false, 0);
+            innerToolbar.PackStart(btnSleep,           false, false, 0);
             innerToolbar.PackEnd  (btnDeletePlaylist,  false, false, 0);
             innerToolbar.PackEnd  (btnRenamePlaylist,  false, false, 0);
             vbox.PackStart(innerToolbar, false, false, 0);
 
+            // ── Search bar ────────────────────────────────────────────────────
+            var searchBox = new Box(Orientation.Horizontal, 8);
+            searchBox.Margin = 8;
+            searchBox.MarginTop = 0;
+
+            var lblSearch = new Label("🔍") { Valign = Align.Center };
+            searchEntry = new Entry
+            {
+                PlaceholderText = "Filter songs… (Ctrl+F)",
+                Hexpand = true
+            };
+            searchEntry.Name = "search-entry";
+            searchEntry.Changed += OnSearchChanged;
+
+            // Sleep timer label (hidden by default)
+            _lblSleepTimer = new Label("") { Valign = Align.Center };
+            _lblSleepTimer.Name = "sleep-timer-label";
+            _lblSleepTimer.Visible = false;
+
+            searchBox.PackStart(lblSearch,      false, false, 0);
+            searchBox.PackStart(searchEntry,    true,  true,  0);
+            searchBox.PackEnd  (_lblSleepTimer, false, false, 0);
+            vbox.PackStart(searchBox, false, false, 0);
+
             // Şarkı listesi
-            // Kolonlar: ▶(oynuyor), #, Ad, Süre
+            // Kolonlar: ▶(oynuyor), #, Ad, Süre, YOL
             store = new ListStore(
                 typeof(string),   // 0: oynatma göstergesi "▶" veya ""
                 typeof(string),   // 1: index
                 typeof(string),   // 2: şarkı adı
-                typeof(string),   // 3: süre (henüz yok)
+                typeof(string),   // 3: süre (mm:ss)
                 typeof(string));  // 4: tam yol (gizli)
 
             view = new TreeView(store)
             {
                 HeadersVisible = true,
-                EnableSearch   = true,
-                SearchColumn   = 2
+                EnableSearch   = false // Kendi search'ümüzü kullanıyoruz
             };
             view.Name = "track-list";
 
@@ -265,6 +303,14 @@ namespace MP3Player
             var colName  = new TreeViewColumn("TITLE", rendName, "text", 2)
             { Expand = true, Resizable = true, MinWidth = 200 };
             view.AppendColumn(colName);
+
+            // Süre kolonu
+            var rendDur = new CellRendererText();
+            rendDur.Foreground = "#B3B3B3";
+            rendDur.Xalign = 1;
+            var colDur = new TreeViewColumn("DURATION", rendDur, "text", 3)
+            { MinWidth = 70, Alignment = 1.0f };
+            view.AppendColumn(colDur);
 
             view.RowActivated += OnTrackActivated;
 
@@ -500,11 +546,26 @@ namespace MP3Player
                 var path = _queue[i];
                 var name = SysPath.GetFileNameWithoutExtension(path);
                 var indicator = (i == _currentIndex && (_audio.IsPlaying || _audio.IsPaused))
-                    ? "▶" : "";
-                _trackStore.AppendValues(indicator, (i + 1).ToString(), name, "", path);
+                    ? "♫" : "";
+                var duration = GetTrackDuration(path);
+                _trackStore.AppendValues(indicator, (i + 1).ToString(), name, duration, path);
             }
 
             UpdatePlaylistHeader();
+        }
+
+        /// <summary>MP3 dosyasının süresini okur (TagLib ile)</summary>
+        private string GetTrackDuration(string path)
+        {
+            try
+            {
+                using var tagFile = TagLib.File.Create(path);
+                var ts = tagFile.Properties.Duration;
+                return ts.Hours > 0
+                    ? ts.ToString(@"h\:mm\:ss")
+                    : ts.ToString(@"m\:ss");
+            }
+            catch { return "—"; }
         }
 
         private void UpdatePlaylistHeader()
@@ -828,17 +889,32 @@ namespace MP3Player
 
                 _lblTimeElapsed.Text = TimeSpan.FromSeconds(elapsed).ToString(@"m\:ss");
                 _lblTimeTotal.Text   = TimeSpan.FromSeconds(total).ToString(@"m\:ss");
+
+                // Animasyon frame'ini güncelle
+                if (_audio.IsPlaying && !_audio.IsPaused)
+                {
+                    _animFrame++;
+                    RefreshPlayingIndicator();
+                }
             });
         }
 
         // ── Oynatma göstergesi ────────────────────────────────────────────────
+        private int _animFrame = 0;
+        private readonly string[] _animFrames = { "♫", "♪", "♬", "♪" };
+
         private void RefreshPlayingIndicator()
         {
             if (!_trackStore.GetIterFirst(out TreeIter iter)) return;
             int i = 0;
             do
             {
-                _trackStore.SetValue(iter, 0, i == _currentIndex ? "▶" : "");
+                string indicator = "";
+                if (i == _currentIndex && (_audio.IsPlaying || _audio.IsPaused))
+                {
+                    indicator = _audio.IsPaused ? "⏸" : _animFrames[_animFrame % _animFrames.Length];
+                }
+                _trackStore.SetValue(iter, 0, indicator);
                 i++;
             } while (_trackStore.IterNext(ref iter));
         }
@@ -953,9 +1029,173 @@ namespace MP3Player
         {
             _uiTimer.Stop();
             _uiTimer.Dispose();
+            _sleepTimer?.Stop();
+            _sleepTimer?.Dispose();
             _audio.Stop();
             _audio.Dispose();
             _plMgr.SaveAll();
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        //  SEARCH / FILTER
+        // ══════════════════════════════════════════════════════════════════════
+        private void OnSearchChanged(object? sender, EventArgs e)
+        {
+            var query = _searchEntry.Text.Trim().ToLowerInvariant();
+
+            if (string.IsNullOrEmpty(query))
+            {
+                // Arama temizlendi, playlist'i yeniden yükle
+                LoadPlaylistIntoView(_activePlaylist);
+                return;
+            }
+
+            _trackStore.Clear();
+            _queue.Clear();
+
+            int visIdx = 1;
+            foreach (var path in _activePlaylist.Tracks)
+            {
+                var name = SysPath.GetFileNameWithoutExtension(path);
+                if (name.ToLowerInvariant().Contains(query))
+                {
+                    _queue.Add(path);
+                    var indicator = (_queue.Count - 1 == _currentIndex && (_audio.IsPlaying || _audio.IsPaused))
+                        ? "♫" : "";
+                    var duration = GetTrackDuration(path);
+                    _trackStore.AppendValues(indicator, visIdx.ToString(), name, duration, path);
+                    visIdx++;
+                }
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        //  SLEEP TIMER
+        // ══════════════════════════════════════════════════════════════════════
+        private void OnSleepTimer(object? sender, EventArgs e)
+        {
+            // Eğer timer zaten çalışıyorsa, iptal et
+            if (_sleepTimer != null && _sleepTimer.Enabled)
+            {
+                _sleepTimer.Stop();
+                _sleepTimer.Dispose();
+                _sleepTimer = null;
+                _sleepMinutesRemaining = 0;
+                if (_lblSleepTimer != null) _lblSleepTimer.Visible = false;
+                ShowInfo("Sleep timer cancelled.");
+                return;
+            }
+
+            // Dialog ile süre sor
+            using var dlg = new Dialog("Sleep Timer", this, DialogFlags.Modal);
+            dlg.AddButton("Cancel", ResponseType.Cancel);
+
+            var contentBox = new Box(Orientation.Vertical, 12) { Margin = 16 };
+            contentBox.PackStart(new Label("Stop playback after:") { Xalign = 0 }, false, false, 0);
+
+            var btn15 = new Button("☽  15 minutes");
+            var btn30 = new Button("☽  30 minutes");
+            var btn45 = new Button("☽  45 minutes");
+            var btn60 = new Button("☽  60 minutes");
+            var btn90 = new Button("☽  90 minutes");
+
+            int chosenMinutes = 0;
+
+            btn15.Clicked += (_, _) => { chosenMinutes = 15; dlg.Respond(ResponseType.Ok); };
+            btn30.Clicked += (_, _) => { chosenMinutes = 30; dlg.Respond(ResponseType.Ok); };
+            btn45.Clicked += (_, _) => { chosenMinutes = 45; dlg.Respond(ResponseType.Ok); };
+            btn60.Clicked += (_, _) => { chosenMinutes = 60; dlg.Respond(ResponseType.Ok); };
+            btn90.Clicked += (_, _) => { chosenMinutes = 90; dlg.Respond(ResponseType.Ok); };
+
+            foreach (var b in new[] { btn15, btn30, btn45, btn60, btn90 })
+            {
+                b.Name = "toolbar-btn";
+                contentBox.PackStart(b, false, false, 0);
+            }
+
+            dlg.ContentArea.Add(contentBox);
+            dlg.ContentArea.ShowAll();
+
+            if (dlg.Run() != (int)ResponseType.Ok || chosenMinutes == 0) return;
+
+            _sleepMinutesRemaining = chosenMinutes;
+
+            // Timer: her 60 saniyede bir dakika düşür
+            _sleepTimer = new System.Timers.Timer(60_000);
+            _sleepTimer.Elapsed += (_, _) =>
+            {
+                _sleepMinutesRemaining--;
+                Application.Invoke((_, _) =>
+                {
+                    if (_lblSleepTimer != null)
+                        _lblSleepTimer.Text = $"💤 {_sleepMinutesRemaining} min";
+
+                    if (_sleepMinutesRemaining <= 0)
+                    {
+                        _sleepTimer?.Stop();
+                        _sleepTimer?.Dispose();
+                        _sleepTimer = null;
+                        _audio.Stop();
+                        _btnPlay.Label = "▶";
+                        if (_lblSleepTimer != null) _lblSleepTimer.Visible = false;
+                    }
+                });
+            };
+            _sleepTimer.Start();
+
+            if (_lblSleepTimer != null)
+            {
+                _lblSleepTimer.Text = $"💤 {_sleepMinutesRemaining} min";
+                _lblSleepTimer.Visible = true;
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        //  DRAG & DROP
+        // ══════════════════════════════════════════════════════════════════════
+        private void SetupDragAndDrop()
+        {
+            var targets = new TargetEntry[]
+            {
+                new TargetEntry("text/uri-list", 0, 0)
+            };
+
+            Gtk.Drag.DestSet(this, DestDefaults.All, targets, Gdk.DragAction.Copy);
+            DragDataReceived += OnDragDataReceived;
+        }
+
+        private void OnDragDataReceived(object o, DragDataReceivedArgs args)
+        {
+            var data = args.SelectionData.Text;
+            if (string.IsNullOrEmpty(data)) return;
+
+            var lines = data.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            int imported = 0;
+
+            foreach (var line in lines)
+            {
+                var uri = line.Trim();
+                if (!uri.StartsWith("file://")) continue;
+
+                var filePath = Uri.UnescapeDataString(uri.Substring(7));
+                var ext = SysPath.GetExtension(filePath).ToLowerInvariant();
+
+                if (MusicLibrary.SupportedExtensions.Contains(ext))
+                {
+                    var destList = _library.ImportFiles(new[] { filePath });
+                    foreach (var dest in destList)
+                    {
+                        _plMgr.AddTrack(_activePlaylist, dest);
+                        imported++;
+                    }
+                }
+            }
+
+            if (imported > 0)
+            {
+                LoadPlaylistIntoView(_activePlaylist);
+                RefreshSidebar();
+            }
         }
 
         // ══════════════════════════════════════════════════════════════════════
@@ -964,6 +1204,17 @@ namespace MP3Player
         [GLib.ConnectBefore]
         private void OnKeyPress(object sender, KeyPressEventArgs e)
         {
+            // Ctrl+F = Focus search
+            if (e.Event.Key == Gdk.Key.f && (e.Event.State & Gdk.ModifierType.ControlMask) != 0)
+            {
+                _searchEntry.GrabFocus();
+                e.RetVal = true;
+                return;
+            }
+
+            // Eğer search entry focus'taysa, klavye kısayollarını engelleme
+            if (_searchEntry.HasFocus) return;
+
             switch (e.Event.Key)
             {
                 case Gdk.Key.space:

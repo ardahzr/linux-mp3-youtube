@@ -707,3 +707,29 @@ spinner {
 stack {
     background-color: #121212;
 }
+
+/* ── Search Entry ─────────────────────────────────────── */
+#search-entry {
+    background-color: #2a2a2a;
+    color: #FFFFFF;
+    border: 2px solid transparent;
+    border-radius: 24px;
+    padding: 6px 16px;
+    font-size: 13px;
+    transition: 200ms ease;
+}
+
+#search-entry:focus {
+    border-color: #1DB954;
+    background-color: #333333;
+}
+
+/* ── Sleep Timer Label ────────────────────────────────── */
+#sleep-timer-label {
+    color: #1DB954;
+    font-size: 12px;
+    font-weight: 700;
+    background-color: rgba(29,185,84,0.15);
+    padding: 4px 12px;
+    border-radius: 16px;
+}
