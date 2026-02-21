@@ -1,217 +1,76 @@
 /* ═══════════════════════════════════════════════════════
-   LMP – Libuntu Music Player — Spotify-style Dark Theme
-   GTK 3.24 compatible CSS — hardcoded colours so the app
-   looks correct on ANY desktop / theme (white, Wayland…)
+   LMP – Libuntu Music Player
+   Dark theme — works on X11, Wayland, any desktop/theme
    ═══════════════════════════════════════════════════════ */
 
-/* ══ GLOBAL RESET — beat every system theme ══════════════
-   All colours are forced here so white/light system themes
-   cannot bleed through.                                   */
+/* ── Global reset: override ANY system theme ─────────── */
 * {
     color:            #FFFFFF;
     background-color: #121212;
     font-family:      "Ubuntu", "Cantarell", "Noto Sans", sans-serif;
-    caret-color:      #1DB954;
     outline-color:    transparent;
 }
 
-window,
-window decoration {
-    background-color: #121212;
-    color: #FFFFFF;
-}
-
-/* ── Paned divider ────────────────────────────────────── */
-paned > separator {
-    background-color: #282828;
-    min-width: 1px;
-    min-height: 1px;
-}
-
-/* ── Dialogs ──────────────────────────────────────────── */
-dialog {
-    background-color: #1e1e1e;
-    color: #FFFFFF;
-}
-
-dialog .dialog-action-area button {
-    background-color: #333333;
-    color: #FFFFFF;
-    border: 1px solid #535353;
-    border-radius: 4px;
-    padding: 6px 16px;
-}
-
-dialog .dialog-action-area button:hover {
-    background-color: #444444;
-}
-
-/* ── Text Entry ───────────────────────────────────────── */
-entry {
-    background-color: #333333;
-    color: #FFFFFF;
-    border: 1px solid #535353;
-    border-radius: 4px;
-    padding: 6px 8px;
-    caret-color: #FFFFFF;
-}
-
-entry:focus {
-    border-color: #1DB954;
-    background-color: #3a3a3a;
-}
-
-entry selection {
-    background-color: #1DB954;
-    color: #000000;
-}
-
-/* ── TextView (YouTube log area) ─────────────────────────*/
-textview {
-    background-color: #0a0a0a;
-    color: #CCCCCC;
-}
-
-textview text {
-    background-color: #0a0a0a;
-    color: #CCCCCC;
-}
-
-textview text selection {
-    background-color: #1DB954;
-    color: #000000;
-}
-
-/* ── Generic buttons ─────────────────────────────────────*/
-button {
-    background-color: #333333;
-    color: #FFFFFF;
-    border: none;
-    border-radius: 4px;
-}
-
-button:hover {
-    background-color: #444444;
-}
-
-button:active {
-    background-color: #1DB954;
-    color: #000000;
-}
-
-/* ── Labels – explicit white so GTK doesn't inherit system */
-label {
-    color: #FFFFFF;
-}
-
-/* ── CheckButton ─────────────────────────────────────────*/
-checkbutton label {
-    color: #FFFFFF;
-}
-
-checkbutton check {
-    background-color: #333333;
-    border: 1px solid #535353;
-    border-radius: 3px;
-}
-
-checkbutton check:checked {
-    background-color: #1DB954;
-    border-color: #1DB954;
-}
-
-/* ── ProgressBar ─────────────────────────────────────────*/
-progressbar trough {
-    background-color: #333333;
-    border-radius: 4px;
-    min-height: 8px;
-}
-
-progressbar progress {
-    background-color: #1DB954;
-    border-radius: 4px;
-}
-
-progressbar text {
-    color: #FFFFFF;
-}
-
-/* ── MessageDialog ───────────────────────────────────────*/
-messagedialog {
-    background-color: #1e1e1e;
-}
-
-messagedialog .message-area label {
-    color: #FFFFFF;
-}
-
-/* ── Right-click Menu ────────────────────────────────────*/
-menu {
-    background-color: #282828;
-    color: #FFFFFF;
-    border: 1px solid #535353;
-    border-radius: 4px;
-    padding: 4px 0;
-}
-
-menuitem {
-    background-color: transparent;
-    color: #FFFFFF;
-    padding: 6px 16px;
-}
-
-menuitem:hover {
-    background-color: #333333;
-}
-
-menuitem separator {
-    background-color: #535353;
-    min-height: 1px;
-    margin: 4px 0;
-}
-
-/* ── ScrolledWindow ──────────────────────────────────────*/
-scrolledwindow {
+window {
     background-color: #121212;
 }
 
-/* ── Paned ───────────────────────────────────────────────*/
-paned {
-    background-color: #121212;
-}
-
-
-/* ── Sol Sidebar ──────────────────────────────────────── */
+/* ── Sidebar ──────────────────────────────────────────── */
 #sidebar {
-    background-color: #000000;
-    border-right: 1px solid #282828;
+    background-color: #0a0a0a;
+    border-right: 1px solid #2a2a2a;
     min-width: 220px;
 }
 
 #sidebar-header {
-    background-color: #000000;
+    background-color: #0a0a0a;
     padding: 16px 12px 8px 12px;
 }
 
 #sidebar-header label {
-    font-size: 13px;
+    font-size: 11px;
     font-weight: bold;
-    color: #FFFFFF;
+    color: #A0A0A0;
 }
 
-/* Sidebar playlist listesi */
+#btn-new-playlist {
+    background-color: transparent;
+    border: none;
+    color: #A0A0A0;
+    padding: 4px 8px;
+    font-size: 18px;
+    border-radius: 50%;
+    min-width: 28px;
+    min-height: 28px;
+}
+
+#btn-new-playlist:hover {
+    color: #FFFFFF;
+    background-color: #2a2a2a;
+}
+
 #playlist-list {
-    background-color: #000000;
+    background-color: #0a0a0a;
 }
 
 #playlist-list row {
-    padding: 6px 16px;
-    border-radius: 4px;
+    padding: 8px 12px;
+    border-radius: 6px;
     margin: 1px 6px;
+    background-color: transparent;
+}
+
+#playlist-list row label {
+    color: #B3B3B3;
+    font-size: 14px;
 }
 
 #playlist-list row:hover {
-    background-color: #1a1a1a;
+    background-color: #1e1e1e;
+}
+
+#playlist-list row:hover label {
+    color: #FFFFFF;
 }
 
 #playlist-list row:selected {
@@ -223,49 +82,66 @@ paned {
     font-weight: bold;
 }
 
-#playlist-list label {
-    color: #B3B3B3;
-    font-size: 14px;
-}
-
-/* Sidebar yeni playlist butonu */
-#btn-new-playlist {
-    background: transparent;
-    border: none;
-    color: #B3B3B3;
-    padding: 8px 16px;
-    font-size: 13px;
-}
-
-#btn-new-playlist:hover {
-    color: #FFFFFF;
-    background-color: #1a1a1a;
-}
-
-/* ── Ana İçerik Alanı ─────────────────────────────────── */
+/* ── Content area ─────────────────────────────────────── */
 #content-area {
     background-color: #121212;
 }
 
-/* İçerik header */
 #content-header {
-    background-color: #1a3320;
-    padding: 24px 24px 16px 24px;
+    background-color: #1e1e1e;
+    padding: 20px 24px 14px 24px;
+    border-bottom: 1px solid #2a2a2a;
 }
 
 #now-playing-title {
-    font-size: 24px;
+    font-size: 22px;
     font-weight: bold;
     color: #FFFFFF;
 }
 
 #now-playing-subtitle {
-    font-size: 13px;
-    color: #B3B3B3;
-    margin-top: 4px;
+    font-size: 12px;
+    color: #A0A0A0;
 }
 
-/* ── Şarkı Listesi ────────────────────────────────────── */
+/* ── Toolbar buttons ──────────────────────────────────── */
+#toolbar {
+    background-color: #0a0a0a;
+    border-bottom: 1px solid #2a2a2a;
+    padding: 6px 12px;
+}
+
+#toolbar-btn {
+    background-color: transparent;
+    border: 1px solid #3a3a3a;
+    border-radius: 20px;
+    color: #CCCCCC;
+    font-size: 12px;
+    padding: 4px 14px;
+    margin: 0 2px;
+}
+
+#toolbar-btn:hover {
+    border-color: #FFFFFF;
+    color: #FFFFFF;
+    background-color: #2a2a2a;
+}
+
+#toolbar-btn-youtube {
+    background-color: #CC0000;
+    border: none;
+    border-radius: 20px;
+    color: #FFFFFF;
+    font-size: 12px;
+    padding: 5px 14px;
+    font-weight: bold;
+}
+
+#toolbar-btn-youtube:hover {
+    background-color: #E60000;
+}
+
+/* ── Track list ───────────────────────────────────────── */
 #track-list {
     background-color: #121212;
     color: #FFFFFF;
@@ -276,84 +152,85 @@ paned {
 }
 
 #track-list row {
-    padding: 4px 24px;
+    padding: 3px 16px;
     border-radius: 4px;
-    margin: 0px 8px;
+    margin: 0 4px;
     background-color: #121212;
 }
 
 #track-list row:hover {
-    background-color: #282828;
+    background-color: #1e1e1e;
 }
 
 #track-list row:selected {
-    background-color: #333333;
+    background-color: #2a2a2a;
 }
 
-/* ── Alt Player Bar ───────────────────────────────────── */
+/* ── Player bar ───────────────────────────────────────── */
 #player-bar {
-    background-color: #181818;
-    border-top: 1px solid #282828;
-    padding: 12px 16px;
-    min-height: 90px;
+    background-color: #0a0a0a;
+    border-top: 1px solid #2a2a2a;
+    padding: 10px 16px;
+    min-height: 80px;
 }
 
-/* Album art thumbnail */
 #player-album-art {
     border-radius: 4px;
-    margin-right: 8px;
+    margin-right: 10px;
 }
 
 #player-track-info label {
     color: #FFFFFF;
+    background-color: transparent;
 }
 
 #player-track-name {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: bold;
+    color: #FFFFFF;
 }
 
 #player-track-artist {
-    font-size: 12px;
-    color: #B3B3B3;
+    font-size: 11px;
+    color: #A0A0A0;
 }
 
-/* Play / pause main button */
+/* ── Control buttons ──────────────────────────────────── */
 #control-btn {
-    background: transparent;
+    background-color: transparent;
     border: none;
-    border-radius: 20px;
-    padding: 4px 8px;
-    color: #B3B3B3;
-    font-size: 16px;
+    color: #A0A0A0;
+    font-size: 15px;
+    padding: 4px 6px;
+    border-radius: 50%;
     min-width: 32px;
     min-height: 32px;
 }
 
 #control-btn:hover {
     color: #FFFFFF;
-    background-color: #282828;
+    background-color: #2a2a2a;
 }
 
 #control-btn-play {
     background-color: #1DB954;
     border: none;
     border-radius: 50%;
-    padding: 0px;
+    padding: 0;
     color: #000000;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: bold;
-    min-width: 38px;
-    min-height: 38px;
+    min-width: 36px;
+    min-height: 36px;
 }
 
 #control-btn-play:hover {
     background-color: #1ed760;
 }
 
-/* İlerleme çubuğu */
+/* ── Progress slider ──────────────────────────────────── */
 #progress-scale trough {
-    background-color: #535353;
+    background-color: #3a3a3a;
     border-radius: 2px;
     min-height: 4px;
 }
@@ -372,9 +249,9 @@ paned {
     border: none;
 }
 
-/* Ses slider */
+/* ── Volume slider ────────────────────────────────────── */
 #volume-scale trough {
-    background-color: #535353;
+    background-color: #3a3a3a;
     border-radius: 2px;
     min-height: 4px;
 }
@@ -393,47 +270,12 @@ paned {
     border: none;
 }
 
-/* Zaman etiketi */
+/* ── Time labels ──────────────────────────────────────── */
 #time-label {
     font-size: 11px;
-    color: #B3B3B3;
-    font-family: monospace;
-}
-
-/* ── Araç çubuğu ──────────────────────────────────────── */
-#toolbar {
-    background-color: #121212;
-    border-bottom: 1px solid #282828;
-    padding: 6px 12px;
-}
-
-#toolbar-btn {
+    color: #A0A0A0;
     background-color: transparent;
-    border: 1px solid #535353;
-    border-radius: 16px;
-    color: #FFFFFF;
-    font-size: 12px;
-    padding: 5px 12px;
-    margin: 0 2px;
-}
-
-#toolbar-btn:hover {
-    border-color: #FFFFFF;
-    background-color: #282828;
-}
-
-#toolbar-btn-youtube {
-    background-color: #CC0000;
-    border: none;
-    border-radius: 16px;
-    color: #FFFFFF;
-    font-size: 12px;
-    padding: 5px 12px;
-    font-weight: bold;
-}
-
-#toolbar-btn-youtube:hover {
-    background-color: #FF0000;
+    font-family: monospace;
 }
 
 /* ── Scrollbar ────────────────────────────────────────── */
@@ -447,7 +289,7 @@ scrollbar trough {
 }
 
 scrollbar slider {
-    background-color: #535353;
+    background-color: #3a3a3a;
     border-radius: 4px;
     min-width: 6px;
     min-height: 6px;
@@ -455,12 +297,181 @@ scrollbar slider {
 }
 
 scrollbar slider:hover {
-    background-color: #808080;
+    background-color: #606060;
+}
+
+/* ── Paned divider ────────────────────────────────────── */
+paned > separator {
+    background-color: #2a2a2a;
+    min-width: 1px;
+    min-height: 1px;
+}
+
+/* ── Text Entry ───────────────────────────────────────── */
+entry {
+    background-color: #2a2a2a;
+    color: #FFFFFF;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    padding: 6px 10px;
+    caret-color: #FFFFFF;
+}
+
+entry:focus {
+    border-color: #1DB954;
+    background-color: #333333;
+}
+
+entry selection {
+    background-color: #1DB954;
+    color: #000000;
+}
+
+/* ── Dialogs ──────────────────────────────────────────── */
+dialog {
+    background-color: #1a1a1a;
+    color: #FFFFFF;
+}
+
+dialog .dialog-action-area {
+    background-color: #1a1a1a;
+    padding: 8px;
+}
+
+dialog .dialog-action-area button {
+    background-color: #2a2a2a;
+    color: #FFFFFF;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    padding: 6px 16px;
+}
+
+dialog .dialog-action-area button:hover {
+    background-color: #333333;
+    border-color: #FFFFFF;
+}
+
+/* ── MessageDialog ────────────────────────────────────── */
+messagedialog {
+    background-color: #1a1a1a;
+}
+
+messagedialog .message-area {
+    background-color: #1a1a1a;
+}
+
+messagedialog .message-area label {
+    color: #FFFFFF;
+    background-color: transparent;
+}
+
+messagedialog .dialog-action-area button {
+    background-color: #2a2a2a;
+    color: #FFFFFF;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    padding: 6px 16px;
+}
+
+messagedialog .dialog-action-area button:hover {
+    background-color: #333333;
+}
+
+/* ── TextView (YouTube log) ───────────────────────────── */
+textview {
+    background-color: #111111;
+    color: #CCCCCC;
+    font-size: 12px;
+}
+
+textview text {
+    background-color: #111111;
+    color: #CCCCCC;
+}
+
+textview text selection {
+    background-color: #1DB954;
+    color: #000000;
+}
+
+/* ── ProgressBar (YouTube download) ──────────────────── */
+progressbar trough {
+    background-color: #2a2a2a;
+    border-radius: 4px;
+    min-height: 8px;
+}
+
+progressbar progress {
+    background-color: #1DB954;
+    border-radius: 4px;
+}
+
+progressbar text {
+    color: #FFFFFF;
+    background-color: transparent;
+}
+
+/* ── CheckButton ──────────────────────────────────────── */
+checkbutton {
+    background-color: transparent;
+    color: #CCCCCC;
+}
+
+checkbutton label {
+    color: #CCCCCC;
+    background-color: transparent;
+}
+
+checkbutton check {
+    background-color: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 3px;
+    min-width: 16px;
+    min-height: 16px;
+}
+
+checkbutton check:checked {
+    background-color: #1DB954;
+    border-color: #1DB954;
+}
+
+/* ── Right-click Menu ─────────────────────────────────── */
+menu {
+    background-color: #1e1e1e;
+    color: #FFFFFF;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    padding: 4px 0;
+}
+
+menuitem {
+    background-color: transparent;
+    color: #CCCCCC;
+    padding: 7px 16px;
+    font-size: 13px;
+}
+
+menuitem:hover {
+    background-color: #2a2a2a;
+    color: #FFFFFF;
+}
+
+/* ── Generic fallback button ──────────────────────────── */
+button {
+    background-color: #2a2a2a;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 6px;
+    padding: 4px 10px;
+}
+
+button:hover {
+    background-color: #333333;
 }
 
 /* ── Separator ────────────────────────────────────────── */
 separator {
-    background-color: #282828;
+    background-color: #2a2a2a;
     min-height: 1px;
     min-width: 1px;
 }
