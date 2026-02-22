@@ -723,17 +723,30 @@ tooltip * {
 }
 
 #yt-btn-download {
+    background-image: none;
     background-color: #1DB954;
-    color: #000000;
+    color: #FFFFFF;
     border: none;
     border-radius: 24px;
-    padding: 8px 28px;
+    padding: 10px 32px;
     font-weight: 800;
-    font-size: 13px;
+    font-size: 14px;
+    min-height: 20px;
+    min-width: 80px;
+    opacity: 1;
+    text-shadow: none;
+    box-shadow: 0 2px 8px rgba(29,185,84,0.4);
+}
+
+#yt-btn-download label {
+    color: #FFFFFF;
+    font-weight: 800;
 }
 
 #yt-btn-download:hover {
+    background-image: none;
     background-color: #1ed760;
+    box-shadow: 0 4px 16px rgba(30,215,96,0.5);
 }
 
 /* ── Checkbox ─────────────────────────────────────────── */

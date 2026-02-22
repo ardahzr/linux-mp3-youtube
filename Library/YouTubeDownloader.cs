@@ -21,6 +21,17 @@ namespace MP3Player.Library
         private static readonly string FfmpegBin = "/usr/bin/ffmpeg";
         private static readonly HttpClient Http  = new();
 
+        // ── Speed flags shared by ALL yt-dlp invocations ──────────────────────
+        private static readonly string SpeedFlags = string.Join(" ",
+            "--concurrent-fragments 8",     // download 8 fragments at once per video
+            "--buffer-size 64K",            // larger download buffer
+            "--no-check-certificates",      // skip SSL verify (faster handshake)
+            "--extractor-retries 3",        // retry on transient errors
+            "--socket-timeout 15",          // don't hang on slow connections
+            "--retries 3",                  // retry download on failure
+            "--no-warnings"                 // suppress noisy output
+        );
+
         // ── Events ────────────────────────────────────────────────────────────
         /// <summary>Progress percentage 0‑100 (for progress bar).</summary>
         public event Action<double>? ProgressPercent;
@@ -94,7 +105,8 @@ namespace MP3Player.Library
                 "--no-playlist",
                 $"-o \"{outputDir}/%(title)s.%(ext)s\"",
                 "--newline",
-                "--progress-template \"download:%(progress._percent_str)s %(progress._speed_str)s %(progress._eta_str)s\"");
+                "--progress-template \"download:%(progress._percent_str)s %(progress._speed_str)s %(progress._eta_str)s\"",
+                SpeedFlags);
 
             string? lastFile = null;
             RunYtDlp(args, ref lastFile, null, outputDir, ct);
@@ -111,13 +123,142 @@ namespace MP3Player.Library
         }
 
         // ══════════════════════════════════════════════════════════════════════
-        //  YOUTUBE — Playlist
+        //  YOUTUBE — Playlist (parallel download)
         // ══════════════════════════════════════════════════════════════════════
         private void DownloadYouTubePlaylist(string url, string outputDir, CancellationToken ct)
         {
             Directory.CreateDirectory(outputDir);
-            LogMessage?.Invoke($"📋 Downloading YouTube playlist…");
+            LogMessage?.Invoke($"📋 Fetching YouTube playlist info…");
+            StatusMessage?.Invoke("Fetching playlist video list…");
 
+            // Step 1: Extract video URLs with --flat-playlist
+            var videoUrls = GetYouTubePlaylistUrls(url, ct);
+
+            if (videoUrls.Count == 0)
+            {
+                // Fallback: use old sequential method
+                LogMessage?.Invoke("⚠ Could not extract playlist URLs, falling back to sequential…");
+                DownloadYouTubePlaylistSequential(url, outputDir, ct);
+                return;
+            }
+
+            _totalCount = videoUrls.Count;
+            _completedCount = 0;
+            LogMessage?.Invoke($"📋 Found {_totalCount} video(s) — downloading {MaxParallel} at a time");
+
+            // Step 2: Parallel download with semaphore throttle
+            var semaphore = new SemaphoreSlim(MaxParallel);
+            var tasks = new List<Task>();
+
+            for (int i = 0; i < videoUrls.Count; i++)
+            {
+                ct.ThrowIfCancellationRequested();
+                semaphore.Wait(ct);
+
+                var idx = i;
+                var vidUrl = videoUrls[i];
+
+                var task = Task.Run(() =>
+                {
+                    try
+                    {
+                        DownloadOneYouTubeVideo(vidUrl, idx, outputDir, ct);
+                    }
+                    finally
+                    {
+                        semaphore.Release();
+                    }
+                }, ct);
+
+                tasks.Add(task);
+            }
+
+            Task.WaitAll(tasks.ToArray(), ct);
+            ProgressPercent?.Invoke(100);
+        }
+
+        private void DownloadOneYouTubeVideo(string videoUrl, int index,
+            string outputDir, CancellationToken ct)
+        {
+            var args = string.Join(" ",
+                $"\"{videoUrl}\"",
+                "-x",
+                "--audio-format mp3",
+                "--audio-quality 0",
+                $"--ffmpeg-location \"{FfmpegBin}\"",
+                "--embed-thumbnail",
+                "--add-metadata",
+                "--parse-metadata \"%(title)s:%(meta_title)s\"",
+                "--no-playlist",
+                $"-o \"{outputDir}/%(title)s.%(ext)s\"",
+                "--newline",
+                "--progress-template \"download:%(progress._percent_str)s %(progress._speed_str)s %(progress._eta_str)s\"",
+                SpeedFlags);
+
+            string? lastFile = null;
+            RunYtDlp(args, ref lastFile, $"[{index + 1}/{_totalCount}]", outputDir, ct);
+
+            if (ct.IsCancellationRequested) return;
+
+            if (lastFile is null || !File.Exists(lastFile))
+                lastFile = FindNewestMp3(outputDir);
+
+            if (lastFile is not null && File.Exists(lastFile))
+            {
+                DownloadCompleted?.Invoke(lastFile);
+                var done = Interlocked.Increment(ref _completedCount);
+                ProgressPercent?.Invoke((double)done / _totalCount * 100.0);
+                StatusMessage?.Invoke($"✅ {done}/{_totalCount} completed");
+                LogMessage?.Invoke($"✅ [{done}/{_totalCount}] {Path.GetFileName(lastFile)}");
+            }
+        }
+
+        /// <summary>
+        /// Uses yt-dlp --flat-playlist to quickly get all video URLs without downloading.
+        /// </summary>
+        private List<string> GetYouTubePlaylistUrls(string playlistUrl, CancellationToken ct)
+        {
+            var urls = new List<string>();
+
+            var args = string.Join(" ",
+                $"\"{playlistUrl}\"",
+                "--flat-playlist",
+                "--print url",
+                "--yes-playlist",
+                "--no-warnings",
+                "--no-check-certificates");
+
+            var psi = new ProcessStartInfo(YtDlpBin, args)
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError  = true,
+                UseShellExecute        = false,
+                CreateNoWindow         = true
+            };
+
+            using var proc = new Process { StartInfo = psi };
+            proc.Start();
+
+            while (!proc.StandardOutput.EndOfStream)
+            {
+                if (ct.IsCancellationRequested)
+                {
+                    proc.Kill(true);
+                    return urls;
+                }
+
+                var line = proc.StandardOutput.ReadLine()?.Trim();
+                if (!string.IsNullOrEmpty(line) && line.StartsWith("http"))
+                    urls.Add(line);
+            }
+
+            proc.WaitForExit();
+            return urls;
+        }
+
+        /// <summary>Fallback: old sequential download via single yt-dlp process.</summary>
+        private void DownloadYouTubePlaylistSequential(string url, string outputDir, CancellationToken ct)
+        {
             var args = string.Join(" ",
                 $"\"{url}\"",
                 "-x",
@@ -129,7 +270,8 @@ namespace MP3Player.Library
                 "--yes-playlist",
                 $"-o \"{outputDir}/%(playlist_index)02d - %(title)s.%(ext)s\"",
                 "--newline",
-                "--progress-template \"download:%(progress._percent_str)s %(progress._speed_str)s %(progress._eta_str)s\"");
+                "--progress-template \"download:%(progress._percent_str)s %(progress._speed_str)s %(progress._eta_str)s\"",
+                SpeedFlags);
 
             string? lastFile = null;
             RunYtDlp(args, ref lastFile, null, outputDir, ct);
@@ -139,8 +281,8 @@ namespace MP3Player.Library
         //  SPOTIFY — Track / Album / Playlist (parallel download)
         // ══════════════════════════════════════════════════════════════════════
 
-        /// <summary>Max concurrent yt-dlp downloads for Spotify playlists.</summary>
-        private const int MaxParallel = 3;
+        /// <summary>Max concurrent yt-dlp downloads (8 × 8 fragments = 64 connections).</summary>
+        private const int MaxParallel = 16;
 
         private int _completedCount;
         private int _totalCount;
@@ -225,12 +367,12 @@ namespace MP3Player.Library
                     "--audio-format mp3",
                     "--audio-quality 0",
                     $"--ffmpeg-location \"{FfmpegBin}\"",
-                    "--embed-thumbnail",
                     "--add-metadata",
                     $"--parse-metadata \"%(title)s:%(meta_title)s\"",
                     $"-o \"{outputDir}/{safeFilename}.%(ext)s\"",
                     "--newline",
-                    "--progress-template \"download:%(progress._percent_str)s %(progress._speed_str)s %(progress._eta_str)s\"");
+                    "--progress-template \"download:%(progress._percent_str)s %(progress._speed_str)s %(progress._eta_str)s\"",
+                    SpeedFlags);
 
                 string? lastFile = null;
                 RunYtDlp(args, ref lastFile, searchQuery, outputDir, ct);
