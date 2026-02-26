@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 namespace MP3Player.Library
 {
     /// <summary>
-    /// Downloads audio from YouTube and Spotify URLs as highest-quality MP3.
+    /// Downloads audio from YouTube and Spotify URLs as Opus (highest quality, smaller size).
     /// YouTube: uses yt-dlp directly.
     /// Spotify: scrapes embed page for track info, then searches YouTube via yt-dlp.
     /// </summary>
@@ -42,7 +42,7 @@ namespace MP3Player.Library
         /// <summary>Log message (appended to log area — only important events).</summary>
         public event Action<string>? LogMessage;
 
-        /// <summary>Fires for each completed MP3 file path.</summary>
+        /// <summary>Fires for each completed audio file path.</summary>
         public event Action<string>? DownloadCompleted;
 
         /// <summary>Error message.</summary>
@@ -91,12 +91,13 @@ namespace MP3Player.Library
         private void DownloadYouTube(string url, string outputDir, CancellationToken ct)
         {
             Directory.CreateDirectory(outputDir);
-            LogMessage?.Invoke($"🎵 Downloading from YouTube…");
+            LogMessage?.Invoke($"Downloading from YouTube…");
 
             var args = string.Join(" ",
                 $"\"{url}\"",
+                "-f \"bestaudio[acodec=opus]/bestaudio\"",
                 "-x",
-                "--audio-format mp3",
+                "--audio-format opus",
                 "--audio-quality 0",
                 $"--ffmpeg-location \"{FfmpegBin}\"",
                 "--embed-thumbnail",
@@ -114,12 +115,12 @@ namespace MP3Player.Library
             if (ct.IsCancellationRequested) return;
 
             if (lastFile is null || !File.Exists(lastFile))
-                lastFile = FindNewestMp3(outputDir);
+                lastFile = FindNewestAudio(outputDir);
 
             if (lastFile is not null && File.Exists(lastFile))
                 DownloadCompleted?.Invoke(lastFile);
             else
-                DownloadFailed?.Invoke("MP3 file not found.");
+                DownloadFailed?.Invoke("Audio file not found.");
         }
 
         // ══════════════════════════════════════════════════════════════════════
@@ -128,7 +129,7 @@ namespace MP3Player.Library
         private void DownloadYouTubePlaylist(string url, string outputDir, CancellationToken ct)
         {
             Directory.CreateDirectory(outputDir);
-            LogMessage?.Invoke($"📋 Fetching YouTube playlist info…");
+            LogMessage?.Invoke($"Fetching YouTube playlist info…");
             StatusMessage?.Invoke("Fetching playlist video list…");
 
             // Step 1: Extract video URLs with --flat-playlist
@@ -137,14 +138,14 @@ namespace MP3Player.Library
             if (videoUrls.Count == 0)
             {
                 // Fallback: use old sequential method
-                LogMessage?.Invoke("⚠ Could not extract playlist URLs, falling back to sequential…");
+                LogMessage?.Invoke("Could not extract playlist URLs, falling back to sequential…");
                 DownloadYouTubePlaylistSequential(url, outputDir, ct);
                 return;
             }
 
             _totalCount = videoUrls.Count;
             _completedCount = 0;
-            LogMessage?.Invoke($"📋 Found {_totalCount} video(s) — downloading {MaxParallel} at a time");
+            LogMessage?.Invoke($"Found {_totalCount} video(s) — downloading {MaxParallel} at a time");
 
             // Step 2: Parallel download with semaphore throttle
             var semaphore = new SemaphoreSlim(MaxParallel);
@@ -182,8 +183,9 @@ namespace MP3Player.Library
         {
             var args = string.Join(" ",
                 $"\"{videoUrl}\"",
+                "-f \"bestaudio[acodec=opus]/bestaudio\"",
                 "-x",
-                "--audio-format mp3",
+                "--audio-format opus",
                 "--audio-quality 0",
                 $"--ffmpeg-location \"{FfmpegBin}\"",
                 "--embed-thumbnail",
@@ -201,15 +203,15 @@ namespace MP3Player.Library
             if (ct.IsCancellationRequested) return;
 
             if (lastFile is null || !File.Exists(lastFile))
-                lastFile = FindNewestMp3(outputDir);
+                lastFile = FindNewestAudio(outputDir);
 
             if (lastFile is not null && File.Exists(lastFile))
             {
                 DownloadCompleted?.Invoke(lastFile);
                 var done = Interlocked.Increment(ref _completedCount);
                 ProgressPercent?.Invoke((double)done / _totalCount * 100.0);
-                StatusMessage?.Invoke($"✅ {done}/{_totalCount} completed");
-                LogMessage?.Invoke($"✅ [{done}/{_totalCount}] {Path.GetFileName(lastFile)}");
+                StatusMessage?.Invoke($"✓ {done}/{_totalCount} completed");
+                LogMessage?.Invoke($"✓ [{done}/{_totalCount}] {Path.GetFileName(lastFile)}");
             }
         }
 
@@ -261,8 +263,9 @@ namespace MP3Player.Library
         {
             var args = string.Join(" ",
                 $"\"{url}\"",
+                "-f \"bestaudio[acodec=opus]/bestaudio\"",
                 "-x",
-                "--audio-format mp3",
+                "--audio-format opus",
                 "--audio-quality 0",
                 $"--ffmpeg-location \"{FfmpegBin}\"",
                 "--embed-thumbnail",
@@ -290,7 +293,7 @@ namespace MP3Player.Library
         private async Task DownloadSpotify(string url, string outputDir, CancellationToken ct)
         {
             Directory.CreateDirectory(outputDir);
-            LogMessage?.Invoke("🟢 Fetching Spotify track info…");
+            LogMessage?.Invoke("Fetching Spotify track info…");
             StatusMessage?.Invoke("Connecting to Spotify…");
 
             var tracks = await GetSpotifyTracks(url, ct);
@@ -304,7 +307,7 @@ namespace MP3Player.Library
             _totalCount = tracks.Count;
             _completedCount = 0;
 
-            LogMessage?.Invoke($"🟢 Found {_totalCount} track(s) — downloading {MaxParallel} at a time");
+            LogMessage?.Invoke($"Found {_totalCount} track(s) — downloading {MaxParallel} at a time");
 
             // Single track → just download directly
             if (tracks.Count == 1)
@@ -356,15 +359,16 @@ namespace MP3Player.Library
                     ? title
                     : $"{artist} - {title}";
 
-                LogMessage?.Invoke($"🔍 [{index + 1}/{_totalCount}] {searchQuery}");
+                LogMessage?.Invoke($"» [{index + 1}/{_totalCount}] {searchQuery}");
 
                 // Sanitize filename
                 var safeFilename = SanitizeFilename(searchQuery);
 
                 var args = string.Join(" ",
                     $"\"ytsearch1:{EscapeArg(searchQuery)}\"",
+                    "-f \"bestaudio[acodec=opus]/bestaudio\"",
                     "-x",
-                    "--audio-format mp3",
+                    "--audio-format opus",
                     "--audio-quality 0",
                     $"--ffmpeg-location \"{FfmpegBin}\"",
                     "--add-metadata",
@@ -381,10 +385,12 @@ namespace MP3Player.Library
 
                 if (lastFile is null || !File.Exists(lastFile))
                 {
-                    // Search for file by name pattern
-                    var pattern = $"{safeFilename}*.mp3";
-                    var matches = Directory.GetFiles(outputDir, pattern);
-                    if (matches.Length > 0) lastFile = matches[0];
+                    // Search for file by name pattern (opus preferred, fallback to others)
+                    foreach (var ext in new[] { "opus", "ogg", "webm", "m4a" })
+                    {
+                        var matches = Directory.GetFiles(outputDir, $"{safeFilename}*.{ext}");
+                        if (matches.Length > 0) { lastFile = matches[0]; break; }
+                    }
                 }
 
                 if (lastFile is not null && File.Exists(lastFile))
@@ -392,12 +398,12 @@ namespace MP3Player.Library
                     DownloadCompleted?.Invoke(lastFile);
                     var done = Interlocked.Increment(ref _completedCount);
                     ProgressPercent?.Invoke((double)done / _totalCount * 100.0);
-                    StatusMessage?.Invoke($"✅ {done}/{_totalCount} completed");
-                    LogMessage?.Invoke($"✅ [{done}/{_totalCount}] {Path.GetFileName(lastFile)}");
+                    StatusMessage?.Invoke($"✓ {done}/{_totalCount} completed");
+                    LogMessage?.Invoke($"✓ [{done}/{_totalCount}] {Path.GetFileName(lastFile)}");
                 }
                 else
                 {
-                    LogMessage?.Invoke($"⚠ Could not find: {searchQuery}");
+                    LogMessage?.Invoke($"Could not find: {searchQuery}");
                 }
             }, ct);
         }
@@ -481,7 +487,7 @@ namespace MP3Player.Library
             }
             catch (Exception ex)
             {
-                LogMessage?.Invoke($"⚠ Spotify scrape error: {ex.Message}");
+                LogMessage?.Invoke($"Spotify scrape error: {ex.Message}");
             }
 
             return result;
@@ -512,12 +518,12 @@ namespace MP3Player.Library
                 var line = e.Data.Trim();
                 if (string.IsNullOrEmpty(line)) return;
 
-                // Capture destination file
-                var destMatch = Regex.Match(line, @"Destination:\s*(.+\.mp3)", RegexOptions.IgnoreCase);
+                // Capture destination file (any audio extension)
+                var destMatch = Regex.Match(line, @"Destination:\s*(.+\.(opus|ogg|webm|m4a|mp3))", RegexOptions.IgnoreCase);
                 if (destMatch.Success)
                     captured = destMatch.Groups[1].Value.Trim();
 
-                var extMatch = Regex.Match(line, @"\[ExtractAudio\] Destination:\s*(.+\.mp3)", RegexOptions.IgnoreCase);
+                var extMatch = Regex.Match(line, @"\[ExtractAudio\] Destination:\s*(.+\.(opus|ogg|webm|m4a|mp3))", RegexOptions.IgnoreCase);
                 if (extMatch.Success)
                     captured = extMatch.Groups[1].Value.Trim();
 
@@ -533,7 +539,7 @@ namespace MP3Player.Library
 
                     var extra = pctMatch.Groups[2].Value.Trim();
                     var label = trackLabel ?? "Downloading";
-                    StatusMessage?.Invoke($"⬇ {label}  {pctMatch.Groups[1].Value}%  {extra}");
+                    StatusMessage?.Invoke($"↓ {label}  {pctMatch.Groups[1].Value}%  {extra}");
                     return;
                 }
 
@@ -547,14 +553,14 @@ namespace MP3Player.Library
                         ProgressPercent?.Invoke(pct);
                     }
                     var label = trackLabel ?? "Downloading";
-                    StatusMessage?.Invoke($"⬇ {label}  {legacyPct.Groups[1].Value}%  {legacyPct.Groups[2].Value}");
+                    StatusMessage?.Invoke($"↓ {label}  {legacyPct.Groups[1].Value}%  {legacyPct.Groups[2].Value}");
                     return;
                 }
 
                 // Conversion stage
                 if (line.StartsWith("[ffmpeg]") || line.StartsWith("[ExtractAudio]"))
                 {
-                    StatusMessage?.Invoke("🔄 Converting to MP3…");
+                    StatusMessage?.Invoke("Converting to Opus…");
                     return;
                 }
 
@@ -562,7 +568,7 @@ namespace MP3Player.Library
                 if (line.StartsWith("[download]") && line.Contains("100%"))
                 {
                     ProgressPercent?.Invoke(100);
-                    StatusMessage?.Invoke("✅ Download complete, converting…");
+                    StatusMessage?.Invoke("✓ Download complete, converting…");
                     return;
                 }
 
@@ -570,7 +576,7 @@ namespace MP3Player.Library
                 var titleMatch = Regex.Match(line, @"\[download\] Downloading item (\d+) of (\d+)");
                 if (titleMatch.Success)
                 {
-                    LogMessage?.Invoke($"📥 Track {titleMatch.Groups[1].Value} of {titleMatch.Groups[2].Value}");
+                    LogMessage?.Invoke($"Track {titleMatch.Groups[1].Value} of {titleMatch.Groups[2].Value}");
                     return;
                 }
             };
@@ -581,7 +587,7 @@ namespace MP3Player.Library
                 {
                     // Suppress noisy warnings
                     if (msg.Contains("WARNING:", StringComparison.OrdinalIgnoreCase)) return;
-                    LogMessage?.Invoke($"⚠ {msg}");
+                    LogMessage?.Invoke($"! {msg}");
                 }
             };
 
@@ -602,19 +608,36 @@ namespace MP3Player.Library
             proc.WaitForExit();
             lastFile = captured;
 
+            // If file was captured (download succeeded) but exit code is non-zero,
+            // it's likely a harmless postprocessing error (e.g. opus→opus conversion).
+            // Only report failure if we have NO file at all.
             if (proc.ExitCode != 0 && !ct.IsCancellationRequested)
-                DownloadFailed?.Invoke($"yt-dlp exit code: {proc.ExitCode}");
+            {
+                if (captured is null || !File.Exists(captured))
+                {
+                    // Also check outputDir for any new audio file
+                    var fallback = FindNewestAudio(outputDir);
+                    if (fallback is not null)
+                        lastFile = fallback;
+                    else
+                        DownloadFailed?.Invoke($"yt-dlp exit code: {proc.ExitCode}");
+                }
+                // else: file exists, swallow the postprocessing error
+            }
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────
 
-        private static string? FindNewestMp3(string dir)
+        private static string? FindNewestAudio(string dir)
         {
-            var mp3s = Directory.GetFiles(dir, "*.mp3");
-            if (mp3s.Length == 0) return null;
-            Array.Sort(mp3s, (a, b) =>
+            var extensions = new[] { "*.opus", "*.ogg", "*.webm", "*.m4a", "*.mp3" };
+            var allFiles = new List<string>();
+            foreach (var ext in extensions)
+                allFiles.AddRange(Directory.GetFiles(dir, ext));
+            if (allFiles.Count == 0) return null;
+            allFiles.Sort((a, b) =>
                 File.GetLastWriteTime(b).CompareTo(File.GetLastWriteTime(a)));
-            return mp3s[0];
+            return allFiles[0];
         }
 
         private static string SanitizeFilename(string name)

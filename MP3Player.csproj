@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>MP3Player</AssemblyName>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <!-- libmpg123 + libpulse (sistem dahili, Arch Linux) -->
+    <!-- ffmpeg + libpulse (sistem dahili, Arch Linux) -->
   </PropertyGroup>
 
   <ItemGroup>

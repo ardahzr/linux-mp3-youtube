@@ -199,7 +199,7 @@ namespace MP3Player.Library
             var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 { "Tüm Şarkılar",   "All Songs" },
-                { "🎵 Tüm Şarkılar", "🎵 All Songs" },
+                { "♫ Tüm Şarkılar", "♫ All Songs" },
                 { "Yeni Playlist",   "New Playlist" },
             };
 

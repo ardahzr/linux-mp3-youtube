@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -6,30 +7,15 @@ using System.Threading.Tasks;
 namespace MP3Player.Audio
 {
     /// <summary>
-    /// VLC gerektirmeyen, tamamen Linux dahili ses yığını kullanan motor:
-    ///   libmpg123  → MP3 decode (Arch: pacman -S mpg123)
-    ///   libpulse-simple → PulseAudio / PipeWire PCM çıkışı
+    /// Universal audio engine using ffmpeg for decoding (supports opus, mp3, flac, ogg, aac, wav, m4a)
+    /// and PulseAudio (libpulse-simple) for PCM output.
+    /// No libmpg123 dependency — works with any format ffmpeg supports.
     /// </summary>
     public class AudioEngine : IDisposable
     {
-        // ── libmpg123 P/Invoke ────────────────────────────────────────────────
-        private const string Mpg123Lib = "libmpg123.so.0";
-
-        [DllImport(Mpg123Lib)] private static extern int    mpg123_init();
-        [DllImport(Mpg123Lib)] private static extern IntPtr mpg123_new(IntPtr decoder, out int error);
-        [DllImport(Mpg123Lib)] private static extern int    mpg123_open(IntPtr mh, string path);
-        [DllImport(Mpg123Lib)] private static extern int    mpg123_getformat(IntPtr mh, out long rate, out int channels, out int encoding);
-        [DllImport(Mpg123Lib)] private static extern int    mpg123_read(IntPtr mh, byte[] buf, IntPtr size, out IntPtr done);
-        [DllImport(Mpg123Lib)] private static extern int    mpg123_seek(IntPtr mh, long sampleoff, int whence);
-        [DllImport(Mpg123Lib)] private static extern long   mpg123_tell(IntPtr mh);
-        [DllImport(Mpg123Lib)] private static extern long   mpg123_length(IntPtr mh);
-        [DllImport(Mpg123Lib)] private static extern void   mpg123_close(IntPtr mh);
-        [DllImport(Mpg123Lib)] private static extern void   mpg123_delete(IntPtr mh);
-        [DllImport(Mpg123Lib)] private static extern void   mpg123_exit();
-        [DllImport(Mpg123Lib)] private static extern int    mpg123_volume(IntPtr mh, double vol);
-
-        private const int MPG123_OK  = 0;
-        private const int MPG123_DONE = -12;
+        private const string FfmpegBin  = "/usr/bin/ffmpeg";
+        private const string FfprobeBin = "/usr/bin/ffprobe";
+        private Process? _ffmpeg;
 
         // ── libpulse-simple P/Invoke ──────────────────────────────────────────
         private const string PulseLib = "libpulse-simple.so.0";
@@ -37,9 +23,9 @@ namespace MP3Player.Audio
         [StructLayout(LayoutKind.Sequential)]
         private struct PaSampleSpec
         {
-            public uint   format;   // PA_SAMPLE_S16LE = 3
-            public uint   rate;
-            public byte   channels;
+            public uint format;
+            public uint rate;
+            public byte channels;
         }
 
         [DllImport(PulseLib)] private static extern IntPtr pa_simple_new(
@@ -57,109 +43,164 @@ namespace MP3Player.Audio
         private const int PA_STREAM_PLAYBACK = 1;
         private const uint PA_SAMPLE_S16LE   = 3;
 
-        // ── Durum ─────────────────────────────────────────────────────────────
-        private IntPtr _mh   = IntPtr.Zero;
-        private IntPtr _pa   = IntPtr.Zero;
+        // ── State ─────────────────────────────────────────────────────────────
+        private IntPtr _pa = IntPtr.Zero;
         private CancellationTokenSource? _cts;
-        private Task?   _playTask;
+        private Task? _playTask;
 
-        private long  _totalSamples = 0;
-        private long  _rate         = 44100;
-        private int   _channels     = 2;
-        private double _volume      = 1.0;
-        private double _speed       = 1.0;
+        private double _totalSeconds;
+        private long   _bytesWritten;
+        private uint   _sampleRate = 44100;
+        private int    _channels   = 2;
+        private double _volume     = 1.0;
+        private double _speed      = 1.0;
+        private string? _currentFile;
 
-        private volatile bool _paused = false;
-        private readonly SemaphoreSlim _pauseGate = new(1, 1);
+        private volatile bool _paused;
+        private volatile bool _seekRequested;
+        private double _seekTarget;
 
         public bool IsPlaying => _playTask != null && !_playTask.IsCompleted;
         public bool IsPaused  => _paused;
 
-        /// <summary>0.0 – 2.0 arası ses seviyesi</summary>
         public double Volume
         {
             get => _volume;
-            set
-            {
-                _volume = Math.Clamp(value, 0.0, 2.0);
-                if (_mh != IntPtr.Zero)
-                    mpg123_volume(_mh, _volume);
-            }
+            set => _volume = Math.Clamp(value, 0.0, 2.0);
         }
 
-        /// <summary>Playback speed multiplier (0.5 – 2.0). Requires restart of current track to take effect fully.</summary>
         public double Speed
         {
             get => _speed;
             set => _speed = Math.Clamp(value, 0.25, 3.0);
         }
 
-        /// <summary>Toplam süre (saniye). Dosya açılmadan önce 0.</summary>
-        public double TotalSeconds
-        {
-            get
-            {
-                if (_mh == IntPtr.Zero || _rate == 0) return 0;
-                return (double)_totalSamples / _rate;
-            }
-        }
+        public double TotalSeconds => _totalSeconds;
 
-        /// <summary>Geçen süre (saniye).</summary>
         public double PositionSeconds
         {
             get
             {
-                if (_mh == IntPtr.Zero || _rate == 0) return 0;
-                var pos = mpg123_tell(_mh);
-                return pos < 0 ? 0 : (double)pos / _rate;
+                if (_sampleRate == 0 || _channels == 0) return 0;
+                double bytesPerSecond = _sampleRate * _channels * 2.0;
+                return _bytesWritten / bytesPerSecond;
             }
         }
 
-        /// <summary>Çalma tamamlandığında fırlatılır (UI thread değil).</summary>
         public event EventHandler? TrackEnded;
 
-        // ── Başlangıç ─────────────────────────────────────────────────────────
-        static AudioEngine() => mpg123_init();
-
-        // ── Oynat ─────────────────────────────────────────────────────────────
+        // ── Play ──────────────────────────────────────────────────────────────
         public void Play(string filePath)
         {
             Stop();
+            _currentFile   = filePath;
+            _bytesWritten  = 0;
+            _paused        = false;
+            _seekRequested = false;
 
-            _mh = mpg123_new(IntPtr.Zero, out int err);
-            if (_mh == IntPtr.Zero)
-                throw new InvalidOperationException($"mpg123_new hatası: {err}");
+            ProbeFile(filePath);
+            StartFfmpeg(filePath, 0);
+            OpenPulse();
 
-            if (mpg123_open(_mh, filePath) != MPG123_OK)
-                throw new InvalidOperationException("Dosya açılamadı: " + filePath);
+            _cts = new CancellationTokenSource();
+            var token = _cts.Token;
+            _playTask = Task.Run(() => DecodeLoop(token), token);
+        }
 
-            mpg123_getformat(_mh, out _rate, out _channels, out _);
-            _totalSamples = mpg123_length(_mh);
+        private void ProbeFile(string filePath)
+        {
+            _sampleRate   = 44100;
+            _channels     = 2;
+            _totalSeconds = 0;
 
-            mpg123_volume(_mh, _volume);
+            try
+            {
+                var psi = new ProcessStartInfo(FfprobeBin,
+                    $"-v quiet -print_format json -show_format -show_streams \"{filePath}\"")
+                {
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow  = true
+                };
 
-            // Apply speed by adjusting the PulseAudio playback rate
-            uint playbackRate = (uint)(_rate * _speed);
+                using var proc = Process.Start(psi);
+                if (proc == null) return;
+
+                var json = proc.StandardOutput.ReadToEnd();
+                proc.WaitForExit(3000);
+
+                var srMatch = System.Text.RegularExpressions.Regex.Match(json,
+                    @"""sample_rate"":\s*""(\d+)""");
+                if (srMatch.Success && uint.TryParse(srMatch.Groups[1].Value, out var sr))
+                    _sampleRate = sr;
+
+                var chMatch = System.Text.RegularExpressions.Regex.Match(json,
+                    @"""channels"":\s*(\d+)");
+                if (chMatch.Success && int.TryParse(chMatch.Groups[1].Value, out var ch))
+                    _channels = ch;
+
+                var durMatch = System.Text.RegularExpressions.Regex.Match(json,
+                    @"""duration"":\s*""([\d\.]+)""");
+                if (durMatch.Success && double.TryParse(durMatch.Groups[1].Value,
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var dur))
+                    _totalSeconds = dur;
+            }
+            catch { /* fallback to defaults */ }
+        }
+
+        private void StartFfmpeg(string filePath, double seekTo)
+        {
+            if (_ffmpeg != null && !_ffmpeg.HasExited)
+            {
+                try { _ffmpeg.Kill(true); } catch { }
+            }
+            _ffmpeg?.Dispose();
+
+            var seekArg = seekTo > 0 ? $"-ss {seekTo:F2}" : "";
+            string filterArg;
+            if (Math.Abs(_speed - 1.0) > 0.01)
+                filterArg = $"-af atempo={_speed:F2}";
+            else
+                filterArg = "";
+
+            var filterPart = filterArg.Length > 0 ? filterArg : "";
+            var args = $"{seekArg} -i \"{filePath}\" {filterPart} -f s16le -acodec pcm_s16le -ar {_sampleRate} -ac {_channels} -v quiet pipe:1";
+
+            var psi = new ProcessStartInfo(FfmpegBin, args)
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError  = true,
+                UseShellExecute = false,
+                CreateNoWindow  = true
+            };
+
+            _ffmpeg = new Process { StartInfo = psi };
+            _ffmpeg.Start();
+            _ffmpeg.BeginErrorReadLine();
+        }
+
+        private void OpenPulse()
+        {
+            if (_pa != IntPtr.Zero)
+            {
+                pa_simple_free(_pa);
+                _pa = IntPtr.Zero;
+            }
 
             var spec = new PaSampleSpec
             {
                 format   = PA_SAMPLE_S16LE,
-                rate     = playbackRate,
+                rate     = _sampleRate,
                 channels = (byte)_channels
             };
-            _pa = pa_simple_new(null, "MP3Player", PA_STREAM_PLAYBACK,
-                                null, "Müzik", ref spec,
+            _pa = pa_simple_new(null, "LMP", PA_STREAM_PLAYBACK,
+                                null, "Music", ref spec,
                                 IntPtr.Zero, IntPtr.Zero, out int paErr);
             if (_pa == IntPtr.Zero)
-                throw new InvalidOperationException($"PulseAudio bağlantı hatası: {paErr}");
-
-            _cts = new CancellationTokenSource();
-            var token = _cts.Token;
-
-            _playTask = Task.Run(() => DecodeLoop(token), token);
+                throw new InvalidOperationException($"PulseAudio connection error: {paErr}");
         }
 
-        // ── Decode / oynatma döngüsü ──────────────────────────────────────────
         private void DecodeLoop(CancellationToken token)
         {
             const int BufSize = 4096 * 4;
@@ -167,74 +208,86 @@ namespace MP3Player.Audio
 
             while (!token.IsCancellationRequested)
             {
-                // Duraklat desteği
-                if (_paused)
+                if (_paused) { Thread.Sleep(20); continue; }
+
+                if (_seekRequested)
                 {
-                    Thread.Sleep(20);
+                    _seekRequested = false;
+                    StartFfmpeg(_currentFile!, _seekTarget);
+                    double bytesPerSecond = _sampleRate * _channels * 2.0;
+                    _bytesWritten = (long)(_seekTarget * bytesPerSecond);
                     continue;
                 }
 
-                int ret = mpg123_read(_mh, buf, (IntPtr)BufSize, out IntPtr done);
+                if (_ffmpeg == null || _ffmpeg.HasExited) break;
 
-                if (ret == MPG123_DONE || (ret != MPG123_OK && done == IntPtr.Zero))
-                    break;
+                int read;
+                try { read = _ffmpeg.StandardOutput.BaseStream.Read(buf, 0, BufSize); }
+                catch { break; }
 
-                if (done == IntPtr.Zero) continue;
+                if (read <= 0) break;
 
-                // Ses seviyesi yazılımsal uygulaması (zaten mpg123_volume kullanıyor,
-                // bu blok ekstra güvenlik için)
-                pa_simple_write(_pa, buf, done, out _);
+                // ── Apply volume in software (real-time, no ffmpeg restart) ──
+                ApplyVolume(buf, read);
+
+                pa_simple_write(_pa, buf, (IntPtr)read, out _);
+                _bytesWritten += read;
             }
 
             if (!token.IsCancellationRequested)
             {
-                pa_simple_drain(_pa, out _);
+                if (_pa != IntPtr.Zero) pa_simple_drain(_pa, out _);
                 TrackEnded?.Invoke(this, EventArgs.Empty);
             }
         }
 
-        // ── Duraklat / Devam ──────────────────────────────────────────────────
+        /// <summary>
+        /// Applies volume scaling to S16LE PCM data in-place.
+        /// Reads _volume directly so slider changes take effect immediately.
+        /// </summary>
+        private void ApplyVolume(byte[] buf, int count)
+        {
+            double vol = _volume;
+            // Skip processing if volume is exactly 1.0 (no change needed)
+            if (Math.Abs(vol - 1.0) < 0.001) return;
+
+            // S16LE: each sample is 2 bytes, little-endian
+            for (int i = 0; i + 1 < count; i += 2)
+            {
+                short sample = (short)(buf[i] | (buf[i + 1] << 8));
+                int scaled = (int)(sample * vol);
+                // Clamp to Int16 range to avoid distortion
+                if (scaled > 32767) scaled = 32767;
+                else if (scaled < -32768) scaled = -32768;
+                buf[i]     = (byte)(scaled & 0xFF);
+                buf[i + 1] = (byte)((scaled >> 8) & 0xFF);
+            }
+        }
+
         public void Pause()  => _paused = true;
         public void Resume() => _paused = false;
         public void TogglePause() { if (_paused) Resume(); else Pause(); }
 
-        /// <summary>
-        /// Apply speed change live by reconnecting PulseAudio with new rate.
-        /// Call this after setting Speed property during playback.
-        /// </summary>
         public void ApplySpeed()
         {
-            if (_pa == IntPtr.Zero || _mh == IntPtr.Zero) return;
-
+            if (_currentFile == null || !IsPlaying) return;
             bool wasPaused = _paused;
             _paused = true;
-            Thread.Sleep(50); // let decode loop pause
-
-            // Reconnect PulseAudio with new rate
-            pa_simple_free(_pa);
-            uint playbackRate = (uint)(_rate * _speed);
-            var spec = new PaSampleSpec
-            {
-                format   = PA_SAMPLE_S16LE,
-                rate     = playbackRate,
-                channels = (byte)_channels
-            };
-            _pa = pa_simple_new(null, "MP3Player", PA_STREAM_PLAYBACK,
-                                null, "Müzik", ref spec,
-                                IntPtr.Zero, IntPtr.Zero, out _);
-
+            Thread.Sleep(50);
+            var currentPos = PositionSeconds;
+            StartFfmpeg(_currentFile, currentPos);
+            double bytesPerSecond = _sampleRate * _channels * 2.0;
+            _bytesWritten = (long)(currentPos * bytesPerSecond);
             _paused = wasPaused;
         }
 
-        // ── Pozisyon atla ─────────────────────────────────────────────────────
         public void SeekTo(double seconds)
         {
-            if (_mh == IntPtr.Zero) return;
-            long sample = (long)(seconds * _rate);
-            mpg123_seek(_mh, sample, 0 /* SEEK_SET */);
+            if (_currentFile == null) return;
+            _seekTarget    = Math.Max(0, Math.Min(seconds, _totalSeconds));
+            _seekRequested = true;
         }
 
-        // ── Durdur ────────────────────────────────────────────────────────────
         public void Stop()
         {
             _cts?.Cancel();
@@ -244,16 +297,19 @@ namespace MP3Player.Audio
             _playTask = null;
             _paused = false;
 
-            if (_mh != IntPtr.Zero) { mpg123_close(_mh); mpg123_delete(_mh); _mh = IntPtr.Zero; }
+            if (_ffmpeg != null && !_ffmpeg.HasExited)
+            {
+                try { _ffmpeg.Kill(true); } catch { }
+            }
+            _ffmpeg?.Dispose();
+            _ffmpeg = null;
+
             if (_pa != IntPtr.Zero) { pa_simple_free(_pa); _pa = IntPtr.Zero; }
         }
 
-        // ── Temizlik ──────────────────────────────────────────────────────────
         public void Dispose()
         {
             Stop();
-            mpg123_exit();
-            _pauseGate.Dispose();
             GC.SuppressFinalize(this);
         }
     }

@@ -40,7 +40,7 @@ namespace MP3Player
             // ── Header ────────────────────────────────────────────────────────
             var headerBox = new Box(Orientation.Horizontal, 8);
             headerBox.Name = "yt-header";
-            var headerLabel = new Label("<span size='large' weight='bold'>🎵 YouTube &amp; Spotify Download</span>");
+            var headerLabel = new Label("<span size='large' weight='bold'>♫ YouTube &amp; Spotify Download</span>");
             headerLabel.UseMarkup = true;
             headerLabel.Xalign = 0;
             headerBox.PackStart(headerLabel, true, true, 0);
@@ -72,7 +72,7 @@ namespace MP3Player
                 Ellipsize = Pango.EllipsizeMode.Middle
             };
             lblDest.Markup =
-                $"<small>📁 {GLib.Markup.EscapeText(MusicLibrary.LibraryDir)}</small>";
+                $"<small>» {GLib.Markup.EscapeText(MusicLibrary.LibraryDir)}</small>";
             vbox.PackStart(lblDest, false, false, 0);
 
             // ── Separator ─────────────────────────────────────────────────────
@@ -109,7 +109,7 @@ namespace MP3Player
             vbox.PackStart(_statusCard, false, false, 0);
 
             // ── Log view (compact) ────────────────────────────────────────────
-            var logExpander = new Expander("📋 Details");
+            var logExpander = new Expander("▸ Details");
             logExpander.Name = "yt-log-expander";
 
             _tvLog = new TextView
@@ -132,7 +132,7 @@ namespace MP3Player
             _btnCancel.Name = "yt-btn";
             _btnCancel.Clicked += OnCancelClicked;
 
-            _btnDownload = new Button("⬇ Download")
+            _btnDownload = new Button("↓ Download")
             {
                 CanDefault = true
             };
@@ -168,7 +168,7 @@ namespace MP3Player
             _downloader.AllCompleted += () =>
                 Application.Invoke((_, _) =>
                 {
-                    _lblTrackInfo.Markup = "<b>✅ All downloads completed!</b>";
+                    _lblTrackInfo.Markup = "<b>All downloads completed!</b>";
                     _lblStatus.Text = "Done";
                     _progressBar.Fraction = 1.0;
                     SetDownloading(false);
@@ -177,9 +177,9 @@ namespace MP3Player
             _downloader.DownloadFailed += err =>
                 Application.Invoke((_, _) =>
                 {
-                    AppendLog($"❌ Error: {err}");
+                    AppendLog($"Error: {err}");
                     _lblStatus.Text = "Download failed";
-                    _lblTrackInfo.Markup = "<b>❌ Download failed</b>";
+                    _lblTrackInfo.Markup = "<b>Download failed</b>";
                     SetDownloading(false);
                 });
 
@@ -194,7 +194,7 @@ namespace MP3Player
 
             if (YouTubeDownloader.IsSpotifyUrl(url))
             {
-                _lblTrackInfo.Markup = "<span color='#1DB954'>🟢 Spotify link detected — auto-detecting content</span>";
+                _lblTrackInfo.Markup = "<span color='#1DB954'>● Spotify link detected — auto-detecting content</span>";
             }
             else if (url.Contains("youtube.com") || url.Contains("youtu.be"))
             {
@@ -215,18 +215,18 @@ namespace MP3Player
             var url = _entryUrl.Text.Trim();
             if (string.IsNullOrEmpty(url))
             {
-                AppendLog("⚠ Please enter a URL.");
+                AppendLog("Please enter a URL.");
                 return;
             }
 
             _cts = new CancellationTokenSource();
             SetDownloading(true);
 
-            _lblTrackInfo.Markup = "<b>🎵 Starting download…</b>";
+            _lblTrackInfo.Markup = "<b>Starting download…</b>";
             _lblStatus.Text = "Connecting…";
             _progressBar.Fraction = 0;
 
-            AppendLog($"🎵 URL: {url}");
+            AppendLog($"URL: {url}");
 
             // Auto-detect playlist mode from URL
             bool isPlaylist = url.Contains("list=") || url.Contains("/playlist");

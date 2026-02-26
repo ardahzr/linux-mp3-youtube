@@ -139,7 +139,7 @@ namespace MP3Player
             bar.Margin = 0;
 
             // Left: app name
-            var lblApp = new Label("<b>🎵 LMP</b>")
+            var lblApp = new Label("<b>♫ LMP</b>")
             {
                 UseMarkup = true,
                 Margin = 8
@@ -147,9 +147,9 @@ namespace MP3Player
             bar.PackStart(lblApp, false, false, 4);
 
             // Right: action buttons
-            var btnImport = ToolbarBtn("📂 Add Files", OnImportFiles);
-            var btnScan   = ToolbarBtn("🔄 Scan Library", OnScanLibrary);
-            var btnOpenDir = ToolbarBtn("📁 Open Folder", (_, _) =>
+            var btnImport = ToolbarBtn("+ Add Files", OnImportFiles);
+            var btnScan   = ToolbarBtn("↻ Scan Library", OnScanLibrary);
+            var btnOpenDir = ToolbarBtn("⎆ Open Folder", (_, _) =>
                 System.Diagnostics.Process.Start("xdg-open", MusicLibrary.LibraryDir));
 
             var btnYt = new Button("▶ YouTube & Spotify Download");
@@ -230,13 +230,13 @@ namespace MP3Player
             var innerToolbar = new Box(Orientation.Horizontal, 6);
             innerToolbar.Margin = 8;
 
-            var btnAddToPlaylist = ToolbarBtn("➕ Add Songs", OnAddTrackToPlaylist);
-            var btnRemoveTrack   = ToolbarBtn("➖ Remove Selected", OnRemoveTrack);
+            var btnAddToPlaylist = ToolbarBtn("+ Add Songs", OnAddTrackToPlaylist);
+            var btnRemoveTrack   = ToolbarBtn("- Remove Selected", OnRemoveTrack);
             var btnRenamePlaylist = ToolbarBtn("✏ Rename", OnRenamePlaylist);
-            var btnDeletePlaylist = ToolbarBtn("🗑 Delete Playlist", OnDeletePlaylist);
+            var btnDeletePlaylist = ToolbarBtn("✕ Delete Playlist", OnDeletePlaylist);
 
             // Sleep Timer button
-            var btnSleep = ToolbarBtn("🌙 Sleep Timer", OnSleepTimer);
+            var btnSleep = ToolbarBtn("☾ Sleep Timer", OnSleepTimer);
             
             innerToolbar.PackStart(btnAddToPlaylist,   false, false, 0);
             innerToolbar.PackStart(btnRemoveTrack,     false, false, 0);
@@ -250,7 +250,7 @@ namespace MP3Player
             searchBox.Margin = 8;
             searchBox.MarginTop = 0;
 
-            var lblSearch = new Label("🔍") { Valign = Align.Center };
+            var lblSearch = new Label("⌕") { Valign = Align.Center };
             searchEntry = new Entry
             {
                 PlaceholderText = "Filter songs… (Ctrl+F)",
@@ -354,18 +354,22 @@ namespace MP3Player
             bar.Name = "player-bar";
 
             // ── Left: album art + track info ──────────────────────────────────
-            var leftBox = new Box(Orientation.Horizontal, 8)
+            var leftBox = new Box(Orientation.Horizontal, 12)
             {
-                WidthRequest = 260,
+                WidthRequest = 280,
                 Valign = Align.Center,
-                Margin = 0
+                MarginStart = 8
             };
 
+            // Album art with frame
+            var artFrame = new EventBox();
+            artFrame.Name = "album-art-frame";
             albumArt = new Gtk.Image();
             albumArt.Name = "player-album-art";
-            albumArt.WidthRequest  = 56;
-            albumArt.HeightRequest = 56;
-            leftBox.PackStart(albumArt, false, false, 0);
+            albumArt.WidthRequest  = 64;
+            albumArt.HeightRequest = 64;
+            artFrame.Add(albumArt);
+            leftBox.PackStart(artFrame, false, false, 0);
 
             var infoBox = new Box(Orientation.Vertical, 2)
             {
@@ -373,51 +377,51 @@ namespace MP3Player
             };
             infoBox.Name = "player-track-info";
 
-            trackName = new Label("—") { Xalign = 0, Ellipsize = Pango.EllipsizeMode.End };
+            trackName = new Label("Nothing Playing") { Xalign = 0, Ellipsize = Pango.EllipsizeMode.End, MaxWidthChars = 28 };
             trackName.Name = "player-track-name";
 
-            trackArtist = new Label("") { Xalign = 0, Ellipsize = Pango.EllipsizeMode.End };
+            trackArtist = new Label("Select a song to start") { Xalign = 0, Ellipsize = Pango.EllipsizeMode.End, MaxWidthChars = 32 };
             trackArtist.Name = "player-track-artist";
 
             infoBox.PackStart(trackName,   false, false, 0);
             infoBox.PackStart(trackArtist, false, false, 0);
             leftBox.PackStart(infoBox, true, true, 0);
-            bar.PackStart(leftBox, false, false, 16);
+            bar.PackStart(leftBox, false, false, 8);
 
-            // ── Orta: kontroller + ilerleme ───────────────────────────────────
-            var centerBox = new Box(Orientation.Vertical, 4)
+            // ── Center: controls + progress ───────────────────────────────────
+            var centerBox = new Box(Orientation.Vertical, 2)
             {
                 Hexpand = true,
                 Halign  = Align.Fill,
                 Valign  = Align.Center
             };
 
-            // Kontrol butonları
-            var ctrlBox = new Box(Orientation.Horizontal, 4)
+            // Control buttons — clean, symmetric layout
+            var ctrlBox = new Box(Orientation.Horizontal, 0)
             {
                 Halign = Align.Center,
                 Valign = Align.Center
             };
 
-            btnShuf = PlayerBtn("⇄", "Shuffle",   OnToggleShuffle); btnShuf.Name = "control-btn";
-            var btnPrev = PlayerBtn("⏮", "Previous", OnPrev);          btnPrev.Name = "control-btn";
-            btnPlay     = PlayerBtn("▶", "Play",     OnPlayPause);     btnPlay.Name = "control-btn-play";
-            var btnNext = PlayerBtn("⏭", "Next",     OnNext);          btnNext.Name = "control-btn";
-            btnRep      = PlayerBtn("↻", "Repeat",   OnToggleRepeat);  btnRep.Name  = "control-btn";
-            var btnStop = PlayerBtn("⏹", "Stop",     OnStop);          btnStop.Name = "control-btn";
+            btnShuf     = PlayerBtn("⇌",  "Shuffle",  OnToggleShuffle); btnShuf.Name = "control-btn";
+            var btnPrev = PlayerBtn("⏮",  "Previous", OnPrev);          btnPrev.Name = "control-btn";
+            btnPlay     = PlayerBtn("▶",  "Play",     OnPlayPause);     btnPlay.Name = "control-btn-play";
+            var btnNext = PlayerBtn("⏭",  "Next",     OnNext);          btnNext.Name = "control-btn";
+            var btnStop = PlayerBtn("■",  "Stop",     OnStop);          btnStop.Name = "control-btn";
+            btnRep      = PlayerBtn("⟳",  "Repeat",   OnToggleRepeat);  btnRep.Name  = "control-btn";
 
-            ctrlBox.PackStart(btnShuf, false, false, 0);
-            ctrlBox.PackStart(btnPrev, false, false, 0);
-            ctrlBox.PackStart(btnPlay, false, false, 8);
-            ctrlBox.PackStart(btnNext, false, false, 0);
-            ctrlBox.PackStart(btnStop, false, false, 0);
-            ctrlBox.PackStart(btnRep,  false, false, 0);
+            ctrlBox.PackStart(btnShuf, false, false, 4);
+            ctrlBox.PackStart(btnPrev, false, false, 4);
+            ctrlBox.PackStart(btnPlay, false, false, 10);
+            ctrlBox.PackStart(btnNext, false, false, 4);
+            ctrlBox.PackStart(btnStop, false, false, 4);
+            ctrlBox.PackStart(btnRep,  false, false, 4);
             centerBox.PackStart(ctrlBox, false, false, 0);
 
-            // İlerleme çubuğu + zaman
+            // Progress bar + time
             var progBox = new Box(Orientation.Horizontal, 8) { Halign = Align.Fill };
 
-            timeElapsed = new Label("0:00") { WidthRequest = 40, Xalign = 1 };
+            timeElapsed = new Label("0:00") { WidthRequest = 42, Xalign = 1 };
             timeElapsed.Name = "time-label";
 
             progress = new Scale(Orientation.Horizontal, 0, 1000, 1)
@@ -429,7 +433,7 @@ namespace MP3Player
             progress.ButtonPressEvent   += (_, _) => _seeking = true;
             progress.ButtonReleaseEvent += OnProgressReleased;
 
-            timeTotal = new Label("0:00") { WidthRequest = 40, Xalign = 0 };
+            timeTotal = new Label("0:00") { WidthRequest = 42, Xalign = 0 };
             timeTotal.Name = "time-label";
 
             progBox.PackStart(timeElapsed, false, false, 0);
@@ -437,15 +441,27 @@ namespace MP3Player
             progBox.PackStart(timeTotal,   false, false, 0);
             centerBox.PackStart(progBox, false, false, 0);
 
-            bar.PackStart(centerBox, true, true, 16);
+            bar.PackStart(centerBox, true, true, 8);
 
-            // ── Sağ: ses seviyesi ─────────────────────────────────────────────
-            var volBox = new Box(Orientation.Horizontal, 6)
+            // ── Right: speed + volume ─────────────────────────────────────────
+            var rightBox = new Box(Orientation.Horizontal, 8)
             {
-                WidthRequest = 180,
+                WidthRequest = 220,
                 Valign = Align.Center
             };
-            var lblVol = new Label("🔊") { Xalign = 1 };
+
+            // Speed button
+            btnSpeed = new Button("1.0x") { TooltipText = "Playback Speed" };
+            btnSpeed.Name = "speed-btn";
+            btnSpeed.Clicked += OnSpeedClicked;
+
+            // Volume
+            var volBox = new Box(Orientation.Horizontal, 6)
+            {
+                Valign = Align.Center
+            };
+            var lblVol = new Label("♪") { Xalign = 1 };
+            lblVol.Name = "vol-icon";
             volume = new Scale(Orientation.Horizontal, 0, 100, 1)
             {
                 DrawValue = false,
@@ -459,16 +475,6 @@ namespace MP3Player
             volBox.PackStart(lblVol, false, false, 0);
             volBox.PackStart(volume, true,  true,  0);
 
-            // ── Speed button ──────────────────────────────────────────────────
-            btnSpeed = new Button("1.0x") { TooltipText = "Playback Speed" };
-            btnSpeed.Name = "speed-btn";
-            btnSpeed.Clicked += OnSpeedClicked;
-
-            var rightBox = new Box(Orientation.Horizontal, 8)
-            {
-                WidthRequest = 220,
-                Valign = Align.Center
-            };
             rightBox.PackStart(btnSpeed, false, false, 0);
             rightBox.PackStart(volBox,   true,  true,  0);
             bar.PackEnd(rightBox, false, false, 16);
@@ -489,7 +495,7 @@ namespace MP3Player
             {
                 var row  = new ListBoxRow();
                 var hbox = new Box(Orientation.Horizontal, 8);
-                var icon = new Label("🎵") { Valign = Align.Center };
+                var icon = new Label("♫") { Valign = Align.Center };
                 var lbl  = new Label(pl.Name)
                 {
                     Xalign = 0,
@@ -656,13 +662,13 @@ namespace MP3Player
             itemPlay.Activated += (_, _) => PlayAt(idx);
             menu.Append(itemPlay);
 
-            var itemAddTo = new MenuItem("➕ Add to Playlist");
+            var itemAddTo = new MenuItem("+ Add to Playlist");
             itemAddTo.Activated += (_, _) => ShowAddToPlaylistMenu(idx);
             menu.Append(itemAddTo);
 
             menu.Append(new SeparatorMenuItem());
 
-            var itemRemove = new MenuItem("➖ Remove from List");
+            var itemRemove = new MenuItem("- Remove from List");
             itemRemove.Activated += (_, _) => RemoveTrackAt(idx);
             menu.Append(itemRemove);
 
@@ -809,7 +815,7 @@ namespace MP3Player
             var name = SysPath.GetFileNameWithoutExtension(_queue[index]);
             _lblTrackName.Text   = name;
             _lblTrackArtist.Text = GetTrackArtist(_queue[index]);
-            _btnPlay.Label = "⏸";
+            _btnPlay.Label = "❚❚";
 
             // Load album art thumbnail
             LoadAlbumArt(_queue[index]);
@@ -874,7 +880,7 @@ namespace MP3Player
             if (_audio.IsPlaying)
             {
                 _audio.TogglePause();
-                _btnPlay.Label = _audio.IsPaused ? "▶" : "⏸";
+                _btnPlay.Label = _audio.IsPaused ? "▶" : "❚❚";
             }
             else if (_currentIndex >= 0)
                 PlayAt(_currentIndex);
@@ -979,7 +985,7 @@ namespace MP3Player
                 string indicator = "";
                 if (i == _currentIndex && (_audio.IsPlaying || _audio.IsPaused))
                 {
-                    indicator = _audio.IsPaused ? "⏸" : _animFrames[_animFrame % _animFrames.Length];
+                    indicator = _audio.IsPaused ? "❚❚" : _animFrames[_animFrame % _animFrames.Length];
                 }
                 _trackStore.SetValue(iter, 0, indicator);
                 i++;
@@ -1165,11 +1171,11 @@ namespace MP3Player
             var contentBox = new Box(Orientation.Vertical, 12) { Margin = 16 };
             contentBox.PackStart(new Label("Stop playback after:") { Xalign = 0 }, false, false, 0);
 
-            var btn15 = new Button("☽  15 minutes");
-            var btn30 = new Button("☽  30 minutes");
-            var btn45 = new Button("☽  45 minutes");
-            var btn60 = new Button("☽  60 minutes");
-            var btn90 = new Button("☽  90 minutes");
+            var btn15 = new Button("15 minutes");
+            var btn30 = new Button("30 minutes");
+            var btn45 = new Button("45 minutes");
+            var btn60 = new Button("60 minutes");
+            var btn90 = new Button("90 minutes");
 
             int chosenMinutes = 0;
 
@@ -1200,7 +1206,7 @@ namespace MP3Player
                 Application.Invoke((_, _) =>
                 {
                     if (_lblSleepTimer != null)
-                        _lblSleepTimer.Text = $"💤 {_sleepMinutesRemaining} min";
+                        _lblSleepTimer.Text = $"☾ {_sleepMinutesRemaining} min";
 
                     if (_sleepMinutesRemaining <= 0)
                     {
@@ -1217,7 +1223,7 @@ namespace MP3Player
 
             if (_lblSleepTimer != null)
             {
-                _lblSleepTimer.Text = $"💤 {_sleepMinutesRemaining} min";
+                _lblSleepTimer.Text = $"☾ {_sleepMinutesRemaining} min";
                 _lblSleepTimer.Visible = true;
             }
         }
